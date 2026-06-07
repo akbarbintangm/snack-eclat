@@ -1,61 +1,222 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Snack Eclat
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Versi dokumentasi: **0.2.0 / Feature-002**
 
-## About Laravel
+Snack Eclat adalah aplikasi monolith Laravel 12 + Vue 3 untuk analisis pola penjualan snack menggunakan algoritma Equivalence Class Transformation (ECLAT). Aplikasi ini dibuat berdasarkan laporan skripsi **"Implementasi Algoritma Equivalence Class Transformation (ECLAT) untuk Menentukan Pola Penjualan Snack"** oleh Jamilatun Nasichah.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Ringkasan Indonesia
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### Tujuan
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Snack Eclat membantu Toko ABC mengubah data transaksi penjualan snack menjadi informasi pola pembelian. Hasil analisis dapat digunakan untuk pengelolaan stok, penataan produk, paket promosi, cross-selling, dan upselling.
 
-## Learning Laravel
+### Fitur
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- Master data snack.
+- Entry transaksi penjualan dan detail item snack.
+- Analisis ECLAT berbasis Laravel dengan vertical TID List dan DFS intersection.
+- Penyimpanan riwayat proses ECLAT.
+- Penyimpanan hasil association rule pada tabel `hasil_eclat`.
+- Dashboard ringkasan.
+- Laporan rekomendasi penjualan.
+- API JSON dengan pagination, status code error, dan logging.
+- Swagger UI di `/docs` dengan Bearer Auth JWT security scheme.
+- UI Vue modular dengan TypeScript, skeleton loading, full-page loading, light/dark theme, dan translasi ID/EN.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### Database
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Database default:
 
-## Laravel Sponsors
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=snack_eclat
+DB_USERNAME=root
+DB_PASSWORD=
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Tabel fitur:
 
-### Premium Partners
+- `snacks`
+- `transactions`
+- `transaction_details`
+- `eclat_runs`
+- `hasil_eclat`
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+Setiap tabel fitur memakai primary key `id` increment, kolom `status`, `created_by`, `updated_by`, `created_at`, `updated_at`, `deleted_by`, dan `deleted_at`.
 
-## Contributing
+### Optimasi
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- Index pada status, nama snack, tanggal transaksi, foreign key detail transaksi, support, confidence, dan run ECLAT.
+- Endpoint list memakai pagination.
+- Relasi transaksi memakai eager loading untuk menghindari query berulang.
+- Proses ECLAT dijalankan di Laravel agar dekat dengan database.
+- Hasil analisis disimpan agar data GET berikutnya cepat tanpa menghitung ulang.
+- Vue route memakai lazy loading, termasuk Swagger UI sebagai chunk terpisah.
 
-## Code of Conduct
+### Alur ECLAT
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+1. Mengambil transaksi aktif.
+2. Membersihkan item kosong dan duplikasi item dalam satu transaksi.
+3. Mengubah transaksi horizontal menjadi TID List.
+4. Menghitung support setiap itemset.
+5. Menjalankan DFS intersection untuk kombinasi k-itemset.
+6. Menghitung confidence dan lift ratio.
+7. Menyimpan association rule valid sebagai rekomendasi.
 
-## Security Vulnerabilities
+Baseline dari laporan skripsi:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+- Minimum support: 30%.
+- Minimum confidence: 50%.
+- Rule terkuat: Pop U Corn Cheese -> Pop U Corn OG dan Pop U Corn OG -> Pop U Corn Cheese.
+- Support: 32%.
+- Confidence: 53,33%.
 
-## License
+### Struktur Backend
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Setiap modul utama memiliki Controller, Model, Service, Interface, dan Repository:
+
+- `app/Features/Snacks`
+- `app/Features/Transactions`
+- `app/Features/Eclat`
+- `app/Features/Reports`
+- `app/Features/Documentation`
+
+### Struktur Frontend
+
+Vue dipisah per modul:
+
+- `resources/js/features/dashboard`
+- `resources/js/features/snacks`
+- `resources/js/features/transactions`
+- `resources/js/features/eclat`
+- `resources/js/features/reports`
+- `resources/js/features/documentation`
+- `resources/js/shared`
+
+Setiap modul fitur memiliki file `.vue` untuk UI dan `.ts` untuk proses data/API.
+
+### API Utama
+
+- `GET /api/v1/snacks`
+- `POST /api/v1/snacks`
+- `GET /api/v1/transactions`
+- `POST /api/v1/transactions`
+- `GET /api/v1/eclat/runs`
+- `POST /api/v1/eclat/analyze`
+- `GET /api/v1/eclat/results`
+- `GET /api/v1/reports/summary`
+- `GET /api/v1/reports/recommendations`
+- `GET /api/v1/documentation/openapi.json`
+
+### Cara Menjalankan
+
+```bash
+composer install
+npm install
+copy .env.example .env
+php artisan key:generate
+php artisan migrate --seed
+npm run build
+php artisan serve --port=9000
+```
+
+Akses aplikasi:
+
+- `http://127.0.0.1:9000`
+- `http://localhost:9000`
+
+Swagger UI:
+
+- `http://127.0.0.1:9000/docs`
+
+## English Summary
+
+### Purpose
+
+Snack Eclat helps Toko ABC turn snack sales transactions into buying-pattern insights. The analysis output supports stock planning, product placement, promotional bundles, cross-selling, and upselling.
+
+### Features
+
+- Snack master data.
+- Sales transaction entry with snack item details.
+- Laravel-side ECLAT analysis using vertical TID List and DFS intersection.
+- ECLAT run history.
+- Association rule storage in `hasil_eclat`.
+- Dashboard summary.
+- Recommendation report.
+- JSON API with pagination, error status code handling, and logging.
+- Swagger UI at `/docs` with Bearer Auth JWT security scheme.
+- Modular Vue UI with TypeScript, skeleton loading, full-page loading, light/dark theme, and ID/EN translations.
+
+### Database
+
+Default database configuration:
+
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=snack_eclat
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+Feature tables:
+
+- `snacks`
+- `transactions`
+- `transaction_details`
+- `eclat_runs`
+- `hasil_eclat`
+
+Each feature table uses an incrementing `id` primary key plus `status`, `created_by`, `updated_by`, `created_at`, `updated_at`, `deleted_by`, and `deleted_at`.
+
+### Optimization
+
+- Indexes are added for status, snack name, transaction date, transaction-detail foreign keys, support, confidence, and ECLAT run fields.
+- List endpoints use pagination.
+- Transaction relations use eager loading.
+- ECLAT runs in Laravel to keep processing close to the database.
+- Analysis results are persisted so subsequent GET requests do not recalculate rules.
+- Vue routes are lazy-loaded, with Swagger UI split into a separate chunk.
+
+### ECLAT Flow
+
+1. Load active transactions.
+2. Clean empty items and duplicate items within each transaction.
+3. Transform horizontal transaction data into vertical TID List.
+4. Calculate itemset support.
+5. Run DFS intersection for k-itemset candidates.
+6. Calculate confidence and lift ratio.
+7. Store valid association rules as recommendations.
+
+Thesis baseline:
+
+- Minimum support: 30%.
+- Minimum confidence: 50%.
+- Strongest rules: Pop U Corn Cheese -> Pop U Corn OG and Pop U Corn OG -> Pop U Corn Cheese.
+- Support: 32%.
+- Confidence: 53.33%.
+
+### Run Locally
+
+```bash
+composer install
+npm install
+copy .env.example .env
+php artisan key:generate
+php artisan migrate --seed
+npm run build
+php artisan serve --port=9000
+```
+
+App URL:
+
+- `http://127.0.0.1:9000`
+- `http://localhost:9000`
+
+Swagger UI:
+
+- `http://127.0.0.1:9000/docs`
