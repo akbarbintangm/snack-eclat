@@ -1,61 +1,145 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Snack Eclat
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Snack Eclat adalah aplikasi web monolith Laravel 12 dan Vue 3 untuk menganalisis pola penjualan snack menggunakan algoritma Equivalence Class Transformation (ECLAT). Aplikasi ini disiapkan sebagai dasar implementasi sistem dari laporan skripsi **"Implementasi Algoritma Equivalence Class Transformation (ECLAT) untuk Menentukan Pola Penjualan Snack"** oleh Jamilatun Nasichah.
 
-## About Laravel
+## Gambaran Aplikasi
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Data transaksi penjualan snack sering hanya dipakai sebagai catatan harian. Snack Eclat mengolah data tersebut menjadi informasi pola pembelian, sehingga pemilik toko dapat melihat produk yang sering dibeli bersamaan dan menjadikannya dasar keputusan penjualan.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Manfaat utama aplikasi:
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- Membantu pengelolaan stok berdasarkan pola transaksi.
+- Menemukan kombinasi produk snack yang sering muncul bersamaan.
+- Mendukung strategi penataan produk, paket promosi, cross-selling, dan upselling.
+- Mengurangi keputusan berbasis perkiraan dengan analisis data transaksi.
 
-## Learning Laravel
+## Dasar Penelitian
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Berdasarkan laporan skripsi, studi kasus berfokus pada Toko ABC dengan data penjualan snack selama 6 bulan. Ruang lingkup penelitian dibatasi pada kategori snack dan proses analisis menggunakan algoritma ECLAT.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+Algoritma ECLAT bekerja dengan format data vertikal menggunakan Transaction ID List (TID List). Setiap item menyimpan daftar transaksi yang memuat item tersebut, lalu kombinasi item dicari melalui irisan TID List. Dari proses tersebut sistem menghasilkan:
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- Frequent itemset berdasarkan minimum support.
+- Association rule berdasarkan minimum confidence.
+- Rekomendasi kombinasi snack yang dapat digunakan untuk strategi penjualan.
 
-## Laravel Sponsors
+Contoh baseline dari laporan:
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- Minimum support: 30%.
+- Minimum confidence: 50%.
+- Kombinasi terkuat: Pop U Corn OG dan Pop U Corn Cheese.
+- Support kombinasi: 32%.
+- Confidence rule: 53,33%.
 
-### Premium Partners
+## Kebutuhan Fungsional
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+Fitur inti yang direncanakan pada sistem:
 
-## Contributing
+- Input data master snack.
+- Input data transaksi penjualan snack.
+- Transformasi data transaksi horizontal menjadi TID List.
+- Pencarian frequent itemset.
+- Perhitungan support dan confidence.
+- Pembentukan association rule.
+- Penyajian laporan hasil analisis pola penjualan.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Pengguna Sistem
 
-## Code of Conduct
+- **Admin**: mengelola data snack, data transaksi, dan menjalankan proses analisis ECLAT.
+- **Pemilik Toko**: melihat laporan pola penjualan, hasil association rule, dan rekomendasi strategi penjualan.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Struktur Data Rencana
 
-## Security Vulnerabilities
+Berdasarkan rancangan CDM/PDM pada laporan, entitas utama sistem adalah:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+- `snack`: menyimpan master produk snack.
+- `transaksi`: menyimpan data transaksi penjualan.
+- `detail_transaksi`: menyimpan item snack pada setiap transaksi.
+- `hasil_eclat`: menyimpan kombinasi item, support, dan confidence dari hasil analisis.
 
-## License
+## Teknologi
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- Laravel 12
+- PHP 8.2 atau lebih baru
+- Vue 3
+- Vue Router 4
+- Bootstrap 5
+- Vite
+- MySQL
+
+Frontend dibuat sebagai SPA di dalam Laravel. Ini bukan pemisahan backend Laravel dan frontend Vue menjadi dua project, melainkan Vue berjalan sebagai bagian dari aplikasi Laravel yang sama.
+
+## Konfigurasi Database
+
+Konfigurasi default project:
+
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=snack_eclat
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+Database yang dipakai adalah MySQL lokal pada port `3306` dengan user `root` tanpa password.
+
+## Cara Menjalankan
+
+Install dependency PHP:
+
+```bash
+composer install
+```
+
+Install dependency Node:
+
+```bash
+npm install
+```
+
+Salin file environment bila belum ada:
+
+```bash
+copy .env.example .env
+php artisan key:generate
+```
+
+Jalankan migration:
+
+```bash
+php artisan migrate
+```
+
+Jalankan Vite:
+
+```bash
+npm run dev
+```
+
+Jalankan Laravel di port 9000:
+
+```bash
+php artisan serve --port=9000
+```
+
+Aplikasi dapat dibuka di:
+
+- `http://127.0.0.1:9000`
+- `http://localhost:9000`
+
+Untuk Laragon, aplikasi juga dapat diarahkan ke `localhost:8282` sesuai konfigurasi lokal yang dipakai.
+
+## Mode SPA
+
+Routing Laravel mengarah ke satu Blade shell, lalu navigasi halaman ditangani oleh Vue Router. Rute seperti `/transaksi`, `/analisis`, dan `/dokumentasi` tetap masuk ke aplikasi Vue tanpa refresh penuh saat berpindah halaman dari dalam aplikasi.
+
+## Status Saat Ini
+
+Project sudah berisi setup awal Laravel-Vue:
+
+- Vue 3 terpasang dan termount melalui Vite.
+- Bootstrap 5 terpasang dan dipakai sebagai dasar UI.
+- Vue Router aktif dengan history mode.
+- Dashboard, data transaksi contoh, simulasi ECLAT, dan dokumentasi ringkas sudah tersedia sebagai SPA.
+- Database MySQL lokal `snack_eclat` sudah menjadi konfigurasi utama pada `.env` dan `.env.example`.
