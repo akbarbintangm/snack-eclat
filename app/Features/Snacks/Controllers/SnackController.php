@@ -57,7 +57,12 @@ class SnackController extends Controller
     public function store(StoreSnackRequest $request): JsonResponse
     {
         try {
-            return $this->successResponse($this->service->create($request->validated()), 'Snack created', [], 201);
+            $payload = $request->validated();
+            $payload['user_id'] = $request->user()?->id;
+            $payload['created_by'] = $request->user()?->id;
+            $payload['updated_by'] = $request->user()?->id;
+
+            return $this->successResponse($this->service->create($payload), 'Snack created', [], 201);
         } catch (Throwable $e) {
             Log::error('Failed to create snack', ['payload' => $request->validated(), 'exception' => $e]);
 
@@ -100,7 +105,10 @@ class SnackController extends Controller
     public function update(UpdateSnackRequest $request, int $snack): JsonResponse
     {
         try {
-            return $this->successResponse($this->service->update($snack, $request->validated()), 'Snack updated');
+            $payload = $request->validated();
+            $payload['updated_by'] = $request->user()?->id;
+
+            return $this->successResponse($this->service->update($snack, $payload), 'Snack updated');
         } catch (Throwable $e) {
             Log::error('Failed to update snack', ['id' => $snack, 'exception' => $e]);
 

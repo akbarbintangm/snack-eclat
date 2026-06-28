@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import { clearAuthSession } from '../auth';
 import type { ApiResponse } from './types';
 import { ApiClientError } from './types';
 
@@ -37,6 +38,14 @@ http.interceptors.response.use(
             errors: error.response?.data?.errors,
         });
 
+        if (statusCode === 401) {
+            clearAuthSession();
+
+            if (!window.location.pathname.startsWith('/login')) {
+                window.location.assign('/login');
+            }
+        }
+
         throw new ApiClientError(message, statusCode, error.response?.data?.errors);
     },
 );
@@ -49,6 +58,17 @@ export async function getData<T>(url: string, params?: Record<string, unknown>):
 
 export async function postData<T>(url: string, payload: Record<string, unknown>): Promise<ApiResponse<T>> {
     const response = await http.post<ApiResponse<T>>(url, payload);
+
+    return response.data;
+}
+
+export async function postFormData<T>(url: string, payload: FormData): Promise<ApiResponse<T>> {
+    const response = await http.post<ApiResponse<T>>(url, payload, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+        timeout: 60000,
+    });
 
     return response.data;
 }

@@ -18,6 +18,9 @@ export interface EclatRun {
     run_code: string;
     min_support: number;
     min_confidence: number;
+    filter_type: 'all' | 'date' | 'month' | 'year';
+    date_from?: string | null;
+    date_to?: string | null;
     total_transactions: number;
     total_items: number;
     frequent_itemset_count: number;
@@ -50,4 +53,13 @@ export interface EclatStep {
 export interface EclatRunDetail {
     run: EclatRun;
     steps: EclatStep[];
+}
+
+export type EclatFilterType = 'all' | 'date' | 'month' | 'year';
+
+export interface EclatFilterParams {
+    filter_type?: EclatFilterType;
+    date?: string;
+    month?: string;
+    year?: number;
 }

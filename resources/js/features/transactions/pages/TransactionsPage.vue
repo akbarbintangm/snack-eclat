@@ -1,4 +1,6 @@
 <template>
+    <FullPageLoader v-if="importing" :label="t('uploadExcelLoading')" />
+
     <PageHeader eyebrow="Transaksi" :title="t('transactions')" description="Input transaksi snack dan lihat detail item yang menjadi dasar analisis ECLAT." />
 
     <ErrorBanner :message="errorMessage" :status-code="errorStatus" :retry="loadAll" />
@@ -6,22 +8,66 @@
     <section class="feature-grid">
         <form class="content-panel compact-form" @submit.prevent="submitTransaction">
             <div class="panel-header">
-                <p class="eyebrow">Entry</p>
-                <h2>Tambah Transaksi</h2>
+                <p class="eyebrow">Excel</p>
+                <h2>{{ t('uploadDataExcel') }}</h2>
             </div>
-            <label class="form-label" for="referenceNo">Referensi</label>
+
+            <label class="form-label" for="transactionExcel">{{ t('transactionFile') }}</label>
+            <input id="transactionExcel" ref="transactionExcelInput" class="form-control" accept=".xlsx" type="file" @change="selectImportFile">
+
+            <button class="btn btn-outline-success w-100 mt-3" type="button" :disabled="importing || !importFile" @click="submitImport">
+                {{ t('uploadExcel') }}
+            </button>
+
+            <p v-if="importSummary" class="empty-state mt-3">
+                {{ importSummary.rows_imported }} {{ t('uploadSummary') }}, {{ importSummary.transactions_created }} transaksi baru, {{ importSummary.snacks_created }} snack baru.
+            </p>
+
+            <hr class="my-4">
+
+            <div class="panel-header">
+                <p class="eyebrow">Entry</p>
+                <h2>{{ t('addTransaction') }}</h2>
+            </div>
+            <label class="form-label" for="referenceNo">{{ t('reference') }}</label>
             <input id="referenceNo" v-model="form.reference_no" class="form-control" placeholder="Contoh: T26">
 
-            <label class="form-label mt-3" for="transactionDate">Tanggal</label>
-            <input id="transactionDate" v-model="form.transaction_date" class="form-control" type="date" required>
+            <label class="form-label mt-3" for="transactionDate">{{ t('date') }}</label>
+            <input
+                id="transactionDate"
+                v-model="form.transaction_date"
+                class="form-control date-control"
+                type="date"
+                required
+                @click="openNativeDatePicker"
+                @focus="openNativeDatePicker"
+            >
 
             <div class="mt-3">
-                <label class="form-label">Item Snack</label>
+                <label class="form-label">{{ t('itemSnack') }}</label>
                 <SkeletonBlock v-if="snackLoading" :lines="3" />
-                <label v-for="snack in snackOptions" v-else :key="snack.id" class="check-row">
-                    <input v-model="selectedSnackIds" class="form-check-input" type="checkbox" :value="snack.id">
-                    <span>{{ snack.name }}</span>
-                </label>
+                <div v-else class="multi-select">
+                    <button class="form-control multi-select-trigger" type="button" :aria-expanded="snackDropdownOpen" @click="toggleSnackDropdown">
+                        <span>{{ selectedSnackIds.length ? `${selectedSnackIds.length} ${t('selectedSnack')}` : t('chooseSnack') }}</span>
+                        <span aria-hidden="true">v</span>
+                    </button>
+                    <div v-if="snackDropdownOpen" class="multi-select-panel">
+                        <input v-model="snackSearch" class="form-control" :placeholder="t('searchSnack')">
+                        <div class="multi-select-options">
+                            <label v-for="snack in filteredSnackOptions" :key="snack.id" class="check-row">
+                                <input v-model="pendingSnackIds" class="form-check-input" type="checkbox" :value="snack.id">
+                                <span>{{ snack.name }}</span>
+                            </label>
+                            <p v-if="filteredSnackOptions.length === 0" class="empty-state">{{ t('noData') }}</p>
+                        </div>
+                        <button class="btn btn-success w-100 mt-3" type="button" @click="applySnackSelection">
+                            {{ t('applySelection') }}
+                        </button>
+                    </div>
+                    <div v-if="selectedSnacks.length" class="selected-preview">
+                        <span v-for="snack in selectedSnacks" :key="snack.id" class="item-badge">{{ snack.name }}</span>
+                    </div>
+                </div>
             </div>
 
             <button class="btn btn-success w-100 mt-3" type="submit" :disabled="saving || selectedSnackIds.length === 0">
@@ -43,7 +89,7 @@
                     <tbody>
                         <tr v-for="transaction in transactions" :key="transaction.id">
                             <td class="fw-semibold">{{ transaction.reference_no ?? `#${transaction.id}` }}</td>
-                            <td>{{ transaction.transaction_date }}</td>
+                            <td>{{ formatDisplayDate(transaction.transaction_date) }}</td>
                             <td>
                                 <span v-for="detail in transaction.details" :key="detail.id" class="item-badge">
                                     {{ detail.snack?.name }} x{{ detail.quantity }}
@@ -60,33 +106,54 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { ApiClientError, type PageMeta } from '../../../shared/api/types';
+import { formatDisplayDate, openNativeDatePicker } from '../../../shared/dateFormatter';
 import ErrorBanner from '../../../shared/components/ErrorBanner.vue';
+import FullPageLoader from '../../../shared/components/FullPageLoader.vue';
 import PageHeader from '../../../shared/components/PageHeader.vue';
 import PaginationBar from '../../../shared/components/PaginationBar.vue';
 import SkeletonBlock from '../../../shared/components/SkeletonBlock.vue';
 import { t } from '../../../shared/i18n';
 import { fetchSnacks } from '../../snacks/api';
 import type { Snack } from '../../snacks/types';
-import { createTransaction, fetchTransactions } from '../api';
-import type { SalesTransaction } from '../types';
+import { createTransaction, fetchTransactions, importTransactions } from '../api';
+import type { SalesTransaction, TransactionImportSummary } from '../types';
 
 const today = new Date().toISOString().slice(0, 10);
 const loading = ref(true);
 const snackLoading = ref(true);
 const saving = ref(false);
+const importing = ref(false);
 const transactions = ref<SalesTransaction[]>([]);
 const snackOptions = ref<Snack[]>([]);
 const selectedSnackIds = ref<number[]>([]);
+const pendingSnackIds = ref<number[]>([]);
+const snackSearch = ref('');
+const snackDropdownOpen = ref(false);
+const importFile = ref<File | null>(null);
+const importSummary = ref<TransactionImportSummary | null>(null);
+const transactionExcelInput = ref<HTMLInputElement | null>(null);
 const meta = ref<PageMeta | null>(null);
 const form = ref({ reference_no: '', transaction_date: today });
 const errorMessage = ref('');
 const errorStatus = ref<number | undefined>();
 
+const filteredSnackOptions = computed(() => {
+    const search = snackSearch.value.trim().toLowerCase();
+
+    if (!search) {
+        return snackOptions.value;
+    }
+
+    return snackOptions.value.filter((snack) => snack.name.toLowerCase().includes(search));
+});
+
+const selectedSnacks = computed(() => snackOptions.value.filter((snack) => selectedSnackIds.value.includes(snack.id)));
+
 async function loadSnacks(): Promise<void> {
     snackLoading.value = true;
-    const response = await fetchSnacks({ per_page: 100 });
+    const response = await fetchSnacks({ per_page: 500 });
     snackOptions.value = response.data;
     snackLoading.value = false;
 }
@@ -130,12 +197,55 @@ async function submitTransaction(): Promise<void> {
         });
         form.value.reference_no = '';
         selectedSnackIds.value = [];
+        pendingSnackIds.value = [];
+        snackSearch.value = '';
         await loadTransactions(1);
     } catch (error) {
         errorMessage.value = error instanceof ApiClientError ? error.message : 'Gagal menyimpan transaksi';
         errorStatus.value = error instanceof ApiClientError ? error.statusCode : undefined;
     } finally {
         saving.value = false;
+    }
+}
+
+function toggleSnackDropdown(): void {
+    pendingSnackIds.value = [...selectedSnackIds.value];
+    snackDropdownOpen.value = !snackDropdownOpen.value;
+}
+
+function applySnackSelection(): void {
+    selectedSnackIds.value = [...pendingSnackIds.value];
+    snackDropdownOpen.value = false;
+}
+
+function selectImportFile(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    importFile.value = input.files?.[0] ?? null;
+    importSummary.value = null;
+}
+
+async function submitImport(): Promise<void> {
+    if (!importFile.value) {
+        return;
+    }
+
+    importing.value = true;
+    errorMessage.value = '';
+    errorStatus.value = undefined;
+
+    try {
+        const response = await importTransactions(importFile.value);
+        importSummary.value = response.data;
+        importFile.value = null;
+        if (transactionExcelInput.value) {
+            transactionExcelInput.value.value = '';
+        }
+        await Promise.all([loadSnacks(), loadTransactions(1)]);
+    } catch (error) {
+        errorMessage.value = error instanceof ApiClientError ? error.message : 'Gagal upload Excel';
+        errorStatus.value = error instanceof ApiClientError ? error.statusCode : undefined;
+    } finally {
+        importing.value = false;
     }
 }
 

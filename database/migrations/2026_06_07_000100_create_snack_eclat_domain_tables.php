@@ -10,20 +10,21 @@ return new class extends Migration
     {
         Schema::create('snacks', function (Blueprint $table): void {
             $table->id();
-            $table->string('name', 100);
+            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('name', 1024);
             $table->string('status', 30)->default('active');
             $this->auditColumns($table);
             $table->timestamps();
             $table->unsignedBigInteger('deleted_by')->nullable();
             $table->softDeletes();
 
-            $table->unique('name');
-            $table->index(['status', 'name']);
+            $table->index('status');
             $this->auditForeignKeys($table);
         });
 
         Schema::create('transactions', function (Blueprint $table): void {
             $table->id();
+            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('reference_no', 50)->nullable();
             $table->date('transaction_date');
             $table->string('status', 30)->default('active');
@@ -59,6 +60,9 @@ return new class extends Migration
             $table->string('run_code', 50)->unique();
             $table->decimal('min_support', 8, 4)->default(30);
             $table->decimal('min_confidence', 8, 4)->default(50);
+            $table->string('filter_type', 20)->default('all');
+            $table->date('date_from')->nullable();
+            $table->date('date_to')->nullable();
             $table->unsignedInteger('total_transactions')->default(0);
             $table->unsignedInteger('total_items')->default(0);
             $table->unsignedInteger('frequent_itemset_count')->default(0);
@@ -81,6 +85,7 @@ return new class extends Migration
         Schema::create('hasil_eclat', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('eclat_run_id')->nullable()->constrained('eclat_runs')->nullOnDelete();
+            $table->foreignId('transaction_detail_id')->nullable()->constrained('transaction_details')->nullOnDelete();
             $table->string('combination_item', 200);
             $table->json('antecedent_items');
             $table->json('consequent_items');
