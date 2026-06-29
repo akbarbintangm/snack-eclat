@@ -42,6 +42,7 @@ class EclatRepository implements EclatRepositoryInterface
     {
         return EclatRun::query()
             ->withCount('results')
+            ->when($filters['search'] ?? null, fn ($query, string $search) => $query->where('run_code', 'like', "%{$search}%"))
             ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
             ->when(($filters['filter_type'] ?? 'all') !== 'all', fn ($query) => $this->applyRunPeriodFilter($query, $filters))
             ->latest('created_at')
@@ -57,6 +58,12 @@ class EclatRepository implements EclatRepositoryInterface
     {
         return HasilEclat::query()
             ->with('run:id,run_code,min_support,min_confidence,filter_type,date_from,date_to,created_at')
+            ->when($filters['search'] ?? null, function ($query, string $search): void {
+                $query->where(function ($searchQuery) use ($search): void {
+                    $searchQuery->where('combination_item', 'like', "%{$search}%")
+                        ->orWhere('recommendation', 'like', "%{$search}%");
+                });
+            })
             ->when($filters['run_id'] ?? null, fn ($query, int $runId) => $query->where('eclat_run_id', $runId))
             ->when($filters['min_confidence'] ?? null, fn ($query, float $confidence) => $query->where('confidence', '>=', $confidence))
             ->when($filters['min_support'] ?? null, fn ($query, float $support) => $query->where('support', '>=', $support))

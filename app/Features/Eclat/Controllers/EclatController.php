@@ -31,7 +31,7 @@ class EclatController extends Controller
     {
         try {
             return $this->paginatedResponse($this->service->paginateRuns(
-                $request->only(['status', 'filter_type', 'date', 'month', 'year']),
+                $request->only(['search', 'status', 'filter_type', 'date_from', 'date_to']),
                 min((int) $request->integer('per_page', 10), 100)
             ), 'ECLAT runs loaded');
         } catch (Throwable $e) {
@@ -109,7 +109,7 @@ class EclatController extends Controller
     {
         try {
             return $this->paginatedResponse($this->service->paginateResults(
-                $request->only(['run_id', 'min_confidence', 'min_support', 'filter_type', 'date', 'month', 'year']),
+                $request->only(['search', 'run_id', 'min_confidence', 'min_support', 'filter_type', 'date_from', 'date_to']),
                 min((int) $request->integer('per_page', 10), 100)
             ), 'ECLAT results loaded');
         } catch (Throwable $e) {

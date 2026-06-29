@@ -16,10 +16,9 @@ class AnalyzeEclatRequest extends FormRequest
         return [
             'min_support' => ['required', 'numeric', 'min:0', 'max:100'],
             'min_confidence' => ['required', 'numeric', 'min:0', 'max:100'],
-            'filter_type' => ['nullable', 'string', 'in:all,date,month,year'],
-            'date' => ['nullable', 'required_if:filter_type,date', 'date'],
-            'month' => ['nullable', 'required_if:filter_type,month', 'date_format:Y-m'],
-            'year' => ['nullable', 'required_if:filter_type,year', 'integer', 'min:2000', 'max:2100'],
+            'filter_type' => ['nullable', 'string', 'in:all,range'],
+            'date_from' => ['nullable', 'required_if:filter_type,range', 'date'],
+            'date_to' => ['nullable', 'required_if:filter_type,range', 'date', 'after_or_equal:date_from'],
         ];
     }
 }

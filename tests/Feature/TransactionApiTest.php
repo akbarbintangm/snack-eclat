@@ -2,12 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Features\Eclat\Models\EclatRun;
+use App\Features\Eclat\Models\HasilEclat;
 use App\Features\Snacks\Models\Snack;
 use App\Features\Transactions\Models\Transaction;
 use App\Features\Transactions\Models\TransactionDetail;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\Concerns\CreatesXlsxWorkbook;
 use Tests\TestCase;
@@ -47,6 +50,41 @@ class TransactionApiTest extends TestCase
             ->assertJsonPath('meta.total', 1);
     }
 
+    public function test_transactions_can_be_searched_filtered_by_date_range_and_sorted_by_latest_update(): void
+    {
+        $headers = $this->authHeaders();
+        $popcorn = Snack::query()->create(['name' => 'Popcorn Caramel', 'status' => 'active']);
+        $pia = Snack::query()->create(['name' => 'Pia Kuno', 'status' => 'active']);
+
+        $older = $this->createTransaction('REF-OLD', '2026-01-01', [$popcorn->id]);
+        $newer = $this->createTransaction('REF-NEW', '2026-02-02', [$pia->id]);
+
+        DB::table('transactions')->where('id', $older->id)->update(['updated_at' => '2026-01-01 08:00:00']);
+        DB::table('transactions')->where('id', $newer->id)->update(['updated_at' => '2026-01-02 08:00:00']);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/transactions?per_page=10')
+            ->assertOk()
+            ->assertJsonPath('data.0.reference_no', 'REF-NEW');
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/transactions?search=Pia')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.reference_no', 'REF-NEW');
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/transactions?date_from=2026-01-01&date_to=2026-01-31')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.reference_no', 'REF-OLD');
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/transactions?search=REF-NEW&date_from=2026-01-01&date_to=2026-01-31')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+    }
+
     public function test_user_can_import_transactions_from_excel(): void
     {
         $headers = $this->authHeaders();
@@ -70,6 +108,58 @@ class TransactionApiTest extends TestCase
         $this->assertSame(3, Snack::query()->count());
         $this->assertSame(3, TransactionDetail::query()->count());
         $this->assertDatabaseHas('transaction_details', ['quantity' => 2, 'unit_price' => 37000]);
+    }
+
+    public function test_user_can_delete_all_transaction_data_and_related_eclat_results(): void
+    {
+        $headers = $this->authHeaders();
+        $popcorn = Snack::query()->create(['name' => 'Popcorn', 'status' => 'active']);
+        $pia = Snack::query()->create(['name' => 'Pia', 'status' => 'active']);
+
+        $this->createTransaction('DEL-1', '2026-01-01', [$popcorn->id, $pia->id]);
+        $this->createTransaction('DEL-2', '2026-01-02', [$popcorn->id, $pia->id]);
+
+        $this->withHeaders($headers)
+            ->postJson('/api/v1/eclat/analyze', [
+                'min_support' => 50,
+                'min_confidence' => 50,
+                'filter_type' => 'all',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.run.rule_count', 2);
+
+        $this->withHeaders($headers)
+            ->deleteJson('/api/v1/transactions')
+            ->assertOk()
+            ->assertJsonPath('data.transactions_deleted', 2)
+            ->assertJsonPath('data.transaction_details_deleted', 4)
+            ->assertJsonPath('data.analysis_runs_deleted', 1)
+            ->assertJsonPath('data.analysis_rules_deleted', 2);
+
+        $this->assertSame(2, Snack::query()->count());
+        $this->assertSame(0, Transaction::query()->withTrashed()->count());
+        $this->assertSame(0, TransactionDetail::query()->withTrashed()->count());
+        $this->assertSame(0, EclatRun::query()->withTrashed()->count());
+        $this->assertSame(0, HasilEclat::query()->withTrashed()->count());
+    }
+
+    private function createTransaction(string $reference, string $date, array $snackIds): Transaction
+    {
+        $transaction = Transaction::query()->create([
+            'reference_no' => $reference,
+            'transaction_date' => $date,
+            'status' => 'active',
+        ]);
+
+        foreach ($snackIds as $snackId) {
+            $transaction->details()->create([
+                'snack_id' => $snackId,
+                'quantity' => 1,
+                'status' => 'active',
+            ]);
+        }
+
+        return $transaction;
     }
 
     private function authHeaders(): array

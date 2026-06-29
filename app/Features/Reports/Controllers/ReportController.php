@@ -42,15 +42,20 @@ class ReportController extends Controller
      *     tags={"Reports"},
      *     security={{"bearerAuth":{}}},
      *     summary="Rekomendasi rule penjualan dari hasil ECLAT",
-     *     @OA\Parameter(name="limit", in="query", @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="page", in="query", @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="per_page", in="query", @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="search", in="query", @OA\Schema(type="string")),
      *     @OA\Response(response=200, description="Daftar rekomendasi")
      * )
      */
     public function recommendations(Request $request): JsonResponse
     {
         try {
-            return $this->successResponse(
-                $this->service->recommendations(min((int) $request->integer('limit', 5), 25)),
+            return $this->paginatedResponse(
+                $this->service->recommendations(
+                    $request->only(['search']),
+                    min((int) $request->integer('per_page', 10), 100)
+                ),
                 'Recommendations loaded'
             );
         } catch (Throwable $e) {

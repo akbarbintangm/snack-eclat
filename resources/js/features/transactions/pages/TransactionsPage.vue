@@ -1,5 +1,5 @@
 <template>
-    <FullPageLoader v-if="importing" :label="t('uploadExcelLoading')" />
+    <FullPageLoader v-if="importing || deleting" :label="importing ? t('uploadExcelLoading') : t('deleteTransactionDataLoading')" />
 
     <PageHeader eyebrow="Transaksi" :title="t('transactions')" description="Input transaksi snack dan lihat detail item yang menjadi dasar analisis ECLAT." />
 
@@ -19,6 +19,10 @@
                 {{ t('uploadExcel') }}
             </button>
 
+            <button class="btn btn-outline-danger w-100 mt-2" type="button" :disabled="deleting || importing" @click="submitDeleteTransactionData">
+                {{ deleting ? t('loading') : t('deleteTransactionData') }}
+            </button>
+
             <p v-if="importSummary" class="empty-state mt-3">
                 {{ importSummary.rows_imported }} {{ t('uploadSummary') }}, {{ importSummary.transactions_created }} transaksi baru, {{ importSummary.snacks_created }} snack baru.
             </p>
@@ -33,15 +37,7 @@
             <input id="referenceNo" v-model="form.reference_no" class="form-control" placeholder="Contoh: T26">
 
             <label class="form-label mt-3" for="transactionDate">{{ t('date') }}</label>
-            <input
-                id="transactionDate"
-                v-model="form.transaction_date"
-                class="form-control date-control"
-                type="date"
-                required
-                @click="openNativeDatePicker"
-                @focus="openNativeDatePicker"
-            >
+            <input id="transactionDate" v-model="form.transaction_date" class="form-control date-control" type="date" required @click="openNativeDatePicker" @focus="openNativeDatePicker">
 
             <div class="mt-3">
                 <label class="form-label">{{ t('itemSnack') }}</label>
@@ -76,6 +72,14 @@
         </form>
 
         <article class="content-panel">
+            <div class="table-toolbar">
+                <input v-model="transactionSearch" class="form-control" :placeholder="t('searchTransaction')" @keyup.enter="applyTransactionFilters">
+                <input v-model="transactionDateFrom" class="form-control date-control" type="date" :aria-label="t('startDate')" :title="t('startDate')" @click="openNativeDatePicker"
+                       @focus="openNativeDatePicker" @keyup.enter="applyTransactionFilters">
+                <input v-model="transactionDateTo" class="form-control date-control" type="date" :aria-label="t('endDate')" :title="t('endDate')" @click="openNativeDatePicker"
+                       @focus="openNativeDatePicker" @keyup.enter="applyTransactionFilters">
+                <button class="btn btn-outline-success" type="button" @click="applyTransactionFilters">{{ t('search') }}</button>
+            </div>
             <SkeletonBlock v-if="loading" :lines="7" />
             <div v-else class="table-responsive">
                 <table class="table align-middle data-table">
@@ -106,148 +110,186 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { ApiClientError, type PageMeta } from '../../../shared/api/types';
-import { formatDisplayDate, openNativeDatePicker } from '../../../shared/dateFormatter';
-import ErrorBanner from '../../../shared/components/ErrorBanner.vue';
-import FullPageLoader from '../../../shared/components/FullPageLoader.vue';
-import PageHeader from '../../../shared/components/PageHeader.vue';
-import PaginationBar from '../../../shared/components/PaginationBar.vue';
-import SkeletonBlock from '../../../shared/components/SkeletonBlock.vue';
-import { t } from '../../../shared/i18n';
-import { fetchSnacks } from '../../snacks/api';
-import type { Snack } from '../../snacks/types';
-import { createTransaction, fetchTransactions, importTransactions } from '../api';
-import type { SalesTransaction, TransactionImportSummary } from '../types';
+    import { computed, onMounted, ref } from 'vue';
+    import { ApiClientError, type PageMeta } from '../../../shared/api/types';
+    import { formatDisplayDate, openNativeDatePicker } from '../../../shared/dateFormatter';
+    import ErrorBanner from '../../../shared/components/ErrorBanner.vue';
+    import FullPageLoader from '../../../shared/components/FullPageLoader.vue';
+    import PageHeader from '../../../shared/components/PageHeader.vue';
+    import PaginationBar from '../../../shared/components/PaginationBar.vue';
+    import SkeletonBlock from '../../../shared/components/SkeletonBlock.vue';
+    import { t } from '../../../shared/i18n';
+    import { fetchSnacks } from '../../snacks/api';
+    import type { Snack } from '../../snacks/types';
+    import { createTransaction, deleteTransactionData, fetchTransactions, importTransactions } from '../api';
+    import type { SalesTransaction, TransactionImportSummary } from '../types';
 
-const today = new Date().toISOString().slice(0, 10);
-const loading = ref(true);
-const snackLoading = ref(true);
-const saving = ref(false);
-const importing = ref(false);
-const transactions = ref<SalesTransaction[]>([]);
-const snackOptions = ref<Snack[]>([]);
-const selectedSnackIds = ref<number[]>([]);
-const pendingSnackIds = ref<number[]>([]);
-const snackSearch = ref('');
-const snackDropdownOpen = ref(false);
-const importFile = ref<File | null>(null);
-const importSummary = ref<TransactionImportSummary | null>(null);
-const transactionExcelInput = ref<HTMLInputElement | null>(null);
-const meta = ref<PageMeta | null>(null);
-const form = ref({ reference_no: '', transaction_date: today });
-const errorMessage = ref('');
-const errorStatus = ref<number | undefined>();
+    const today = new Date().toISOString().slice(0, 10);
+    const loading = ref(true);
+    const snackLoading = ref(true);
+    const saving = ref(false);
+    const importing = ref(false);
+    const deleting = ref(false);
+    const transactions = ref<SalesTransaction[]>([]);
+    const snackOptions = ref<Snack[]>([]);
+    const selectedSnackIds = ref<number[]>([]);
+    const pendingSnackIds = ref<number[]>([]);
+    const snackSearch = ref('');
+    const snackDropdownOpen = ref(false);
+    const transactionSearch = ref('');
+    const transactionDateFrom = ref('');
+    const transactionDateTo = ref('');
+    const importFile = ref<File | null>(null);
+    const importSummary = ref<TransactionImportSummary | null>(null);
+    const transactionExcelInput = ref<HTMLInputElement | null>(null);
+    const meta = ref<PageMeta | null>(null);
+    const form = ref({ reference_no: '', transaction_date: today });
+    const errorMessage = ref('');
+    const errorStatus = ref<number | undefined>();
 
-const filteredSnackOptions = computed(() => {
-    const search = snackSearch.value.trim().toLowerCase();
+    const filteredSnackOptions = computed(() => {
+        const search = snackSearch.value.trim().toLowerCase();
 
-    if (!search) {
-        return snackOptions.value;
-    }
-
-    return snackOptions.value.filter((snack) => snack.name.toLowerCase().includes(search));
-});
-
-const selectedSnacks = computed(() => snackOptions.value.filter((snack) => selectedSnackIds.value.includes(snack.id)));
-
-async function loadSnacks(): Promise<void> {
-    snackLoading.value = true;
-    const response = await fetchSnacks({ per_page: 500 });
-    snackOptions.value = response.data;
-    snackLoading.value = false;
-}
-
-async function loadTransactions(page = meta.value?.current_page ?? 1): Promise<void> {
-    loading.value = true;
-    errorMessage.value = '';
-    errorStatus.value = undefined;
-
-    try {
-        const response = await fetchTransactions({ page, per_page: 10 });
-        transactions.value = response.data;
-        meta.value = response.meta;
-    } catch (error) {
-        errorMessage.value = error instanceof ApiClientError ? error.message : 'Gagal memuat transaksi';
-        errorStatus.value = error instanceof ApiClientError ? error.statusCode : undefined;
-    } finally {
-        loading.value = false;
-    }
-}
-
-async function loadAll(): Promise<void> {
-    try {
-        await Promise.all([loadSnacks(), loadTransactions(1)]);
-    } catch (error) {
-        errorMessage.value = error instanceof ApiClientError ? error.message : 'Gagal memuat data';
-        errorStatus.value = error instanceof ApiClientError ? error.statusCode : undefined;
-        snackLoading.value = false;
-        loading.value = false;
-    }
-}
-
-async function submitTransaction(): Promise<void> {
-    saving.value = true;
-
-    try {
-        await createTransaction({
-            reference_no: form.value.reference_no || null,
-            transaction_date: form.value.transaction_date,
-            items: selectedSnackIds.value.map((snackId) => ({ snack_id: snackId, quantity: 1 })),
-        });
-        form.value.reference_no = '';
-        selectedSnackIds.value = [];
-        pendingSnackIds.value = [];
-        snackSearch.value = '';
-        await loadTransactions(1);
-    } catch (error) {
-        errorMessage.value = error instanceof ApiClientError ? error.message : 'Gagal menyimpan transaksi';
-        errorStatus.value = error instanceof ApiClientError ? error.statusCode : undefined;
-    } finally {
-        saving.value = false;
-    }
-}
-
-function toggleSnackDropdown(): void {
-    pendingSnackIds.value = [...selectedSnackIds.value];
-    snackDropdownOpen.value = !snackDropdownOpen.value;
-}
-
-function applySnackSelection(): void {
-    selectedSnackIds.value = [...pendingSnackIds.value];
-    snackDropdownOpen.value = false;
-}
-
-function selectImportFile(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    importFile.value = input.files?.[0] ?? null;
-    importSummary.value = null;
-}
-
-async function submitImport(): Promise<void> {
-    if (!importFile.value) {
-        return;
-    }
-
-    importing.value = true;
-    errorMessage.value = '';
-    errorStatus.value = undefined;
-
-    try {
-        const response = await importTransactions(importFile.value);
-        importSummary.value = response.data;
-        importFile.value = null;
-        if (transactionExcelInput.value) {
-            transactionExcelInput.value.value = '';
+        if (!search) {
+            return snackOptions.value;
         }
-        await Promise.all([loadSnacks(), loadTransactions(1)]);
-    } catch (error) {
-        errorMessage.value = error instanceof ApiClientError ? error.message : 'Gagal upload Excel';
-        errorStatus.value = error instanceof ApiClientError ? error.statusCode : undefined;
-    } finally {
-        importing.value = false;
-    }
-}
 
-onMounted(loadAll);
+        return snackOptions.value.filter((snack) => snack.name.toLowerCase().includes(search));
+    });
+
+    const selectedSnacks = computed(() => snackOptions.value.filter((snack) => selectedSnackIds.value.includes(snack.id)));
+
+    async function loadSnacks(): Promise<void> {
+        snackLoading.value = true;
+        const response = await fetchSnacks({ per_page: 500 });
+        snackOptions.value = response.data;
+        snackLoading.value = false;
+    }
+
+    async function loadTransactions(page = meta.value?.current_page ?? 1): Promise<void> {
+        loading.value = true;
+        errorMessage.value = '';
+        errorStatus.value = undefined;
+
+        try {
+            const response = await fetchTransactions({
+                page,
+                per_page: 10,
+                search: transactionSearch.value.trim() || undefined,
+                date_from: transactionDateFrom.value || undefined,
+                date_to: transactionDateTo.value || undefined,
+            });
+            transactions.value = response.data;
+            meta.value = response.meta;
+        } catch (error) {
+            errorMessage.value = error instanceof ApiClientError ? error.message : 'Gagal memuat transaksi';
+            errorStatus.value = error instanceof ApiClientError ? error.statusCode : undefined;
+        } finally {
+            loading.value = false;
+        }
+    }
+
+    async function applyTransactionFilters(): Promise<void> {
+        await loadTransactions(1);
+    }
+
+    async function loadAll(): Promise<void> {
+        try {
+            await Promise.all([loadSnacks(), loadTransactions(1)]);
+        } catch (error) {
+            errorMessage.value = error instanceof ApiClientError ? error.message : 'Gagal memuat data';
+            errorStatus.value = error instanceof ApiClientError ? error.statusCode : undefined;
+            snackLoading.value = false;
+            loading.value = false;
+        }
+    }
+
+    async function submitTransaction(): Promise<void> {
+        saving.value = true;
+
+        try {
+            await createTransaction({
+                reference_no: form.value.reference_no || null,
+                transaction_date: form.value.transaction_date,
+                items: selectedSnackIds.value.map((snackId) => ({ snack_id: snackId, quantity: 1 })),
+            });
+            form.value.reference_no = '';
+            selectedSnackIds.value = [];
+            pendingSnackIds.value = [];
+            snackSearch.value = '';
+            await loadTransactions(1);
+        } catch (error) {
+            errorMessage.value = error instanceof ApiClientError ? error.message : 'Gagal menyimpan transaksi';
+            errorStatus.value = error instanceof ApiClientError ? error.statusCode : undefined;
+        } finally {
+            saving.value = false;
+        }
+    }
+
+    function toggleSnackDropdown(): void {
+        pendingSnackIds.value = [...selectedSnackIds.value];
+        snackDropdownOpen.value = !snackDropdownOpen.value;
+    }
+
+    function applySnackSelection(): void {
+        selectedSnackIds.value = [...pendingSnackIds.value];
+        snackDropdownOpen.value = false;
+    }
+
+    function selectImportFile(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        importFile.value = input.files?.[0] ?? null;
+        importSummary.value = null;
+    }
+
+    async function submitImport(): Promise<void> {
+        if (!importFile.value) {
+            return;
+        }
+
+        importing.value = true;
+        errorMessage.value = '';
+        errorStatus.value = undefined;
+
+        try {
+            const response = await importTransactions(importFile.value);
+            importSummary.value = response.data;
+            importFile.value = null;
+            if (transactionExcelInput.value) {
+                transactionExcelInput.value.value = '';
+            }
+            await Promise.all([loadSnacks(), loadTransactions(1)]);
+        } catch (error) {
+            errorMessage.value = error instanceof ApiClientError ? error.message : 'Gagal upload Excel';
+            errorStatus.value = error instanceof ApiClientError ? error.statusCode : undefined;
+        } finally {
+            importing.value = false;
+        }
+    }
+
+    async function submitDeleteTransactionData(): Promise<void> {
+        if (!window.confirm(t('deleteTransactionDataConfirm'))) {
+            return;
+        }
+
+        deleting.value = true;
+        errorMessage.value = '';
+        errorStatus.value = undefined;
+
+        try {
+            await deleteTransactionData();
+            importSummary.value = null;
+            transactionSearch.value = '';
+            transactionDateFrom.value = '';
+            transactionDateTo.value = '';
+            await Promise.all([loadSnacks(), loadTransactions(1)]);
+        } catch (error) {
+            errorMessage.value = error instanceof ApiClientError ? error.message : 'Gagal menghapus data transaksi';
+            errorStatus.value = error instanceof ApiClientError ? error.statusCode : undefined;
+        } finally {
+            deleting.value = false;
+        }
+    }
+
+    onMounted(loadAll);
 </script>

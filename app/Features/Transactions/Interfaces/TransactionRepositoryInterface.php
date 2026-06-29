@@ -16,4 +16,6 @@ interface TransactionRepositoryInterface
     public function updateWithDetails(Transaction $transaction, array $payload): Transaction;
 
     public function delete(Transaction $transaction): void;
+
+    public function deleteAllData(): array;
 }

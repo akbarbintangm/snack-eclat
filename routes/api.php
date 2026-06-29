@@ -24,6 +24,7 @@ Route::prefix('v1')->group(function (): void {
 
         Route::middleware('role:admin')->group(function (): void {
             Route::apiResource('snacks', SnackController::class);
+            Route::delete('/transactions', [TransactionController::class, 'destroyAll']);
             Route::post('/transactions/import', [TransactionController::class, 'import']);
             Route::apiResource('transactions', TransactionController::class);
 
@@ -35,6 +36,9 @@ Route::prefix('v1')->group(function (): void {
 
         Route::middleware('role:admin,owner')->group(function (): void {
             Route::get('/reports/summary', [ReportController::class, 'summary']);
+        });
+
+        Route::middleware('role:owner')->group(function (): void {
             Route::get('/reports/recommendations', [ReportController::class, 'recommendations']);
         });
     });

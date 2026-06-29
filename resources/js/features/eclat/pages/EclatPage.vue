@@ -15,14 +15,29 @@
             <label class="form-label" for="filterType">{{ t('filterResults') }}</label>
             <select id="filterType" v-model="filterType" class="form-select">
                 <option value="all">{{ t('all') }}</option>
-                <option value="date">{{ t('date') }}</option>
-                <option value="month">{{ t('month') }}</option>
-                <option value="year">{{ t('year') }}</option>
+                <option value="range">{{ t('dateRange') }}</option>
             </select>
 
-            <input v-if="filterType === 'date'" v-model="filterDate" class="form-control date-control mt-3" type="date" @click="openNativeDatePicker" @focus="openNativeDatePicker">
-            <input v-if="filterType === 'month'" v-model="filterMonth" class="form-control date-control mt-3" type="month" @click="openNativeDatePicker" @focus="openNativeDatePicker">
-            <input v-if="filterType === 'year'" v-model="filterYear" class="form-control mt-3" min="2000" max="2100" type="number">
+            <input
+                v-if="filterType === 'range'"
+                v-model="filterDateFrom"
+                class="form-control date-control mt-3"
+                type="date"
+                :aria-label="t('startDate')"
+                :title="t('startDate')"
+                @click="openNativeDatePicker"
+                @focus="openNativeDatePicker"
+            >
+            <input
+                v-if="filterType === 'range'"
+                v-model="filterDateTo"
+                class="form-control date-control mt-3"
+                type="date"
+                :aria-label="t('endDate')"
+                :title="t('endDate')"
+                @click="openNativeDatePicker"
+                @focus="openNativeDatePicker"
+            >
 
             <button class="btn btn-outline-success w-100 mt-3" type="button" @click="applyFilter">
                 {{ t('applyFilter') }}
@@ -62,6 +77,10 @@
                 <p class="eyebrow">Run History</p>
                 <h2>{{ t('runHistory') }}</h2>
             </div>
+            <div class="table-toolbar">
+                <input v-model="runSearch" class="form-control" :placeholder="t('searchRun')" @keyup.enter="applyRunSearch">
+                <button class="btn btn-outline-success" type="button" @click="applyRunSearch">{{ t('search') }}</button>
+            </div>
             <SkeletonBlock v-if="loading" :lines="5" />
             <div v-else class="table-responsive">
                 <table class="table align-middle data-table">
@@ -98,6 +117,10 @@
             <div class="panel-header">
                 <p class="eyebrow">{{ t('rules') }}</p>
                 <h2>Hasil Association Rule</h2>
+            </div>
+            <div class="table-toolbar">
+                <input v-model="resultSearch" class="form-control" :placeholder="t('searchRule')" @keyup.enter="loadResults(1)">
+                <button class="btn btn-outline-success" type="button" @click="loadResults(1)">{{ t('search') }}</button>
             </div>
             <SkeletonBlock v-if="loading" :lines="5" />
             <div v-else class="table-responsive">
@@ -138,7 +161,7 @@
         <div class="tid-list">
             <div v-for="itemset in latestItemsets" :key="itemset.key" class="tid-row">
                 <strong>{{ itemset.label }} - {{ itemset.support }}%</strong>
-                <span>TID: {{ itemset.tid_list.join(', ') }}</span>
+                <span>Transaction ID: {{ itemset.tid_list.join(', ') }}</span>
             </div>
         </div>
     </section>
@@ -158,19 +181,19 @@ import { fetchEclatResults, fetchEclatRun, fetchEclatRuns, runEclatAnalysis } fr
 import type { EclatFilterParams, EclatFilterType, EclatItemset, EclatResult, EclatRun, EclatRunDetail, EclatStep } from '../types';
 
 const today = new Date().toISOString().slice(0, 10);
-const currentYear = new Date().getFullYear();
 const loading = ref(true);
 const analyzing = ref(false);
 const minSupport = ref(0.1);
 const minConfidence = ref(30);
 const filterType = ref<EclatFilterType>('all');
-const filterDate = ref(today);
-const filterMonth = ref(today.slice(0, 7));
-const filterYear = ref(currentYear);
+const filterDateFrom = ref(today);
+const filterDateTo = ref(today);
 const runs = ref<EclatRun[]>([]);
 const results = ref<EclatResult[]>([]);
 const latestRunDetail = ref<EclatRunDetail | null>(null);
 const activeRunId = ref<number | null>(null);
+const runSearch = ref('');
+const resultSearch = ref('');
 const runMeta = ref<PageMeta | null>(null);
 const resultMeta = ref<PageMeta | null>(null);
 const errorMessage = ref('');
@@ -192,23 +215,24 @@ const rulesEmptyMessage = computed(() => {
     return t('emptyRules');
 });
 const periodParams = computed<EclatFilterParams>(() => {
-    if (filterType.value === 'date') {
-        return { filter_type: 'date', date: filterDate.value };
-    }
-
-    if (filterType.value === 'month') {
-        return { filter_type: 'month', month: filterMonth.value };
-    }
-
-    if (filterType.value === 'year') {
-        return { filter_type: 'year', year: Number(filterYear.value) };
+    if (filterType.value === 'range') {
+        return {
+            filter_type: 'range',
+            date_from: filterDateFrom.value,
+            date_to: filterDateTo.value,
+        };
     }
 
     return { filter_type: 'all' };
 });
 
 async function loadRuns(page = runMeta.value?.current_page ?? 1): Promise<void> {
-    const response = await fetchEclatRuns({ page, per_page: 5, ...periodParams.value });
+    const response = await fetchEclatRuns({
+        page,
+        per_page: 5,
+        search: runSearch.value.trim() || undefined,
+        ...periodParams.value,
+    });
     runs.value = response.data;
     runMeta.value = response.meta;
 }
@@ -217,6 +241,7 @@ async function loadResults(page = resultMeta.value?.current_page ?? 1): Promise<
     const response = await fetchEclatResults({
         page,
         per_page: 10,
+        search: resultSearch.value.trim() || undefined,
         ...periodParams.value,
         run_id: activeRunId.value ?? undefined,
     });
@@ -268,6 +293,20 @@ async function submitAnalysis(): Promise<void> {
 
 async function applyFilter(): Promise<void> {
     await loadAll();
+}
+
+async function applyRunSearch(): Promise<void> {
+    await loadRuns(1);
+    activeRunId.value = runs.value[0]?.id ?? null;
+
+    if (runs.value[0]) {
+        const response = await fetchEclatRun(runs.value[0].id);
+        latestRunDetail.value = response.data;
+    } else {
+        latestRunDetail.value = null;
+    }
+
+    await loadResults(1);
 }
 
 async function selectRun(runId: number): Promise<void> {
