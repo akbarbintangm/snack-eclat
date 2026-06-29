@@ -102,6 +102,36 @@ a {
     gap: 8px;
 }
 
+.profile-menu {
+    min-width: 230px;
+    border: 1px solid var(--se-line);
+    border-radius: 8px;
+    background: var(--se-panel);
+    color: var(--se-ink);
+}
+
+.profile-menu__identity {
+    display: grid;
+    gap: 2px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--se-line);
+}
+
+.profile-menu__identity span,
+.profile-menu__identity small {
+    color: var(--se-muted);
+}
+
+.profile-menu .dropdown-item {
+    color: var(--se-ink);
+    font-weight: 700;
+}
+
+.profile-menu .dropdown-item:hover {
+    background: var(--se-soft);
+    color: var(--se-green-dark);
+}
+
 .icon-button,
 .text-button {
     min-width: 38px;
@@ -245,6 +275,10 @@ a {
     color: var(--se-ink);
 }
 
+.date-control {
+    cursor: pointer;
+}
+
 .form-label {
     display: flex;
     align-items: center;
@@ -303,6 +337,44 @@ a {
     gap: 8px;
     padding: 8px 0;
     color: var(--se-ink);
+}
+
+.multi-select {
+    position: relative;
+}
+
+.multi-select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 40px;
+    text-align: left;
+}
+
+.multi-select-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 10;
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--se-line);
+    border-radius: 8px;
+    background: var(--se-panel);
+    box-shadow: 0 16px 36px color-mix(in srgb, #000000 15%, transparent);
+}
+
+.multi-select-options {
+    max-height: 260px;
+    margin-top: 10px;
+    overflow: auto;
+    padding-right: 4px;
+}
+
+.selected-preview {
+    max-height: 120px;
+    margin-top: 10px;
+    overflow: auto;
 }
 
 .step-list {
@@ -373,6 +445,18 @@ a {
     border-radius: 8px;
     color: var(--se-muted);
     text-align: center;
+}
+
+.empty-state p {
+    margin: 0 0 12px;
+}
+
+.data-table tbody tr.clickable-row {
+    cursor: pointer;
+}
+
+.data-table tbody tr.is-active td {
+    background: var(--se-soft);
 }
 
 .pagination-bar {

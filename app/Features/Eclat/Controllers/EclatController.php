@@ -31,7 +31,7 @@ class EclatController extends Controller
     {
         try {
             return $this->paginatedResponse($this->service->paginateRuns(
-                $request->only(['status']),
+                $request->only(['status', 'filter_type', 'date', 'month', 'year']),
                 min((int) $request->integer('per_page', 10), 100)
             ), 'ECLAT runs loaded');
         } catch (Throwable $e) {
@@ -57,7 +57,11 @@ class EclatController extends Controller
             $payload = $request->validated();
 
             return $this->successResponse(
-                $this->service->analyze((float) $payload['min_support'], (float) $payload['min_confidence']),
+                $this->service->analyze(
+                    (float) $payload['min_support'],
+                    (float) $payload['min_confidence'],
+                    $payload
+                ),
                 'ECLAT analysis completed',
                 [],
                 201
@@ -105,7 +109,7 @@ class EclatController extends Controller
     {
         try {
             return $this->paginatedResponse($this->service->paginateResults(
-                $request->only(['run_id', 'min_confidence', 'min_support']),
+                $request->only(['run_id', 'min_confidence', 'min_support', 'filter_type', 'date', 'month', 'year']),
                 min((int) $request->integer('per_page', 10), 100)
             ), 'ECLAT results loaded');
         } catch (Throwable $e) {

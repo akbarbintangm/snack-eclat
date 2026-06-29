@@ -28,3 +28,13 @@ export interface TransactionPayload {
         unit_price?: number | null;
     }>;
 }
+
+export interface TransactionImportSummary {
+    rows_read: number;
+    rows_imported: number;
+    rows_skipped: number;
+    transactions_created: number;
+    transactions_updated: number;
+    snacks_created: number;
+    details_imported: number;
+}

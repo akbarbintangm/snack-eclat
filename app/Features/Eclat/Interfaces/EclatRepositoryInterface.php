@@ -8,7 +8,7 @@ use Illuminate\Support\Collection;
 
 interface EclatRepositoryInterface
 {
-    public function transactionsForAnalysis(): Collection;
+    public function transactionsForAnalysis(array $period = []): Collection;
 
     public function storeAnalysis(array $runPayload, array $rules): EclatRun;
 

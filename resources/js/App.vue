@@ -14,6 +14,7 @@
                     </RouterLink>
 
                     <button
+                        v-if="isAuthenticated"
                         class="navbar-toggler"
                         type="button"
                         data-bs-toggle="collapse"
@@ -25,7 +26,7 @@
                         <span class="navbar-toggler-icon"></span>
                     </button>
 
-                    <div id="mainNavigation" class="collapse navbar-collapse">
+                    <div v-if="isAuthenticated" id="mainNavigation" class="collapse navbar-collapse">
                         <div class="navbar-nav nav-pills ms-lg-auto">
                             <RouterLink v-for="item in navItems" :key="item.to" class="nav-link" :to="item.to">
                                 {{ item.label }}
@@ -38,7 +39,37 @@
                             <button class="text-button" type="button" :title="t('language')" @click="switchLocale">
                                 {{ locale.toUpperCase() }}
                             </button>
+                            <div class="dropdown">
+                                <button
+                                    class="text-button dropdown-toggle"
+                                    type="button"
+                                    data-bs-toggle="dropdown"
+                                    aria-expanded="false"
+                                    :title="t('profile')"
+                                >
+                                    {{ currentUser?.username }}
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-end profile-menu">
+                                    <div class="profile-menu__identity">
+                                        <strong>{{ currentUser?.name }}</strong>
+                                        <span>{{ currentUser?.email }}</span>
+                                        <small>{{ currentUser?.level }}</small>
+                                    </div>
+                                    <button class="dropdown-item" type="button" @click="submitLogout">
+                                        {{ t('logout') }}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
+                    </div>
+                    <div v-else class="toolbar-actions ms-auto">
+                        <button class="icon-button" type="button" :title="t('theme')" @click="toggleTheme">
+                            {{ themeMode === 'dark' ? 'D' : 'L' }}
+                        </button>
+                        <button class="text-button" type="button" :title="t('language')" @click="switchLocale">
+                            {{ locale.toUpperCase() }}
+                        </button>
+                        <RouterLink class="btn btn-outline-success" to="/login">{{ t('login') }}</RouterLink>
                     </div>
                 </nav>
             </div>
@@ -52,22 +83,40 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { logout } from './features/auth/api';
+import { clearAuthSession, currentUser, isAuthenticated } from './shared/auth';
 import FullPageLoader from './shared/components/FullPageLoader.vue';
 import { locale, setLocale, t, type Locale } from './shared/i18n';
 import { isRouteLoading } from './shared/routerLoading';
 import { applyTheme, themeMode, toggleTheme } from './shared/theme/useTheme';
 
-const navItems = computed(() => [
-    { to: '/', label: t('dashboard') },
-    { to: '/snacks', label: t('snacks') },
-    { to: '/transactions', label: t('transactions') },
-    { to: '/eclat', label: t('eclat') },
-    { to: '/reports', label: t('reports') },
-    { to: '/docs', label: t('docs') },
-]);
+const navItems = computed(() => {
+    const role = currentUser.value?.level;
+    const items = [
+        { to: '/', label: t('dashboard'), roles: ['admin', 'owner'] },
+        { to: '/snacks', label: t('snacks'), roles: ['admin'] },
+        { to: '/transactions', label: t('transactions'), roles: ['admin'] },
+        { to: '/eclat', label: t('eclat'), roles: ['admin'] },
+        { to: '/reports', label: t('reports'), roles: ['admin', 'owner'] },
+        { to: '/docs', label: t('docs'), roles: ['admin'] },
+    ];
+
+    return items.filter((item) => !role || item.roles.includes(role));
+});
+const router = useRouter();
 
 function switchLocale(): void {
     setLocale((locale.value === 'id' ? 'en' : 'id') as Locale);
+}
+
+async function submitLogout(): Promise<void> {
+    try {
+        await logout();
+    } finally {
+        clearAuthSession();
+        await router.push('/login');
+    }
 }
 
 onMounted(() => applyTheme());
