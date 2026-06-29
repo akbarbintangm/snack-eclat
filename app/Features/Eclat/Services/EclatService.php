@@ -4,8 +4,8 @@ namespace App\Features\Eclat\Services;
 
 use App\Features\Eclat\Interfaces\EclatRepositoryInterface;
 use App\Features\Eclat\Models\EclatRun;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -15,12 +15,12 @@ class EclatService
 
     public function paginateRuns(array $filters, int $perPage): LengthAwarePaginator
     {
-        return $this->eclat->paginateRuns($filters, $perPage);
+        return $this->eclat->paginateRuns($this->periodFromFilters($filters), $perPage);
     }
 
     public function paginateResults(array $filters, int $perPage): LengthAwarePaginator
     {
-        return $this->eclat->paginateResults($filters, $perPage);
+        return $this->eclat->paginateResults($this->periodFromFilters($filters), $perPage);
     }
 
     public function findRun(int $id): array
@@ -30,10 +30,11 @@ class EclatService
         return $this->decorateRun($run);
     }
 
-    public function analyze(float $minSupport, float $minConfidence): array
+    public function analyze(float $minSupport, float $minConfidence, array $filters = []): array
     {
         $startedAt = microtime(true);
-        $transactions = $this->eclat->transactionsForAnalysis();
+        $period = $this->periodFromFilters($filters);
+        $transactions = $this->eclat->transactionsForAnalysis($period);
         $transactionItems = $this->buildTransactionItems($transactions);
         $totalTransactions = count($transactionItems);
         $verticalTidList = $this->buildVerticalTidList($transactionItems);
@@ -45,6 +46,9 @@ class EclatService
             'run_code' => 'ECLAT-'.now()->format('YmdHis').'-'.Str::upper(Str::random(4)),
             'min_support' => $minSupport,
             'min_confidence' => $minConfidence,
+            'filter_type' => $period['filter_type'],
+            'date_from' => $period['date_from'],
+            'date_to' => $period['date_to'],
             'total_transactions' => $totalTransactions,
             'total_items' => count($verticalTidList),
             'frequent_itemset_count' => count($frequentItemsets),
@@ -52,7 +56,7 @@ class EclatService
             'execution_time_ms' => $executionTime,
             'tid_list' => $verticalTidList,
             'frequent_itemsets' => $frequentItemsets,
-            'notes' => 'Analysis generated from active transactions using ECLAT vertical TID list and DFS intersection.',
+            'notes' => 'Analysis generated from active transactions using ECLAT vertical TID list and DFS intersection for '.$period['label'].'.',
             'status' => 'completed',
         ], $rules);
 
@@ -82,6 +86,58 @@ class EclatService
         return [
             'run' => $run,
             'steps' => $this->processSteps($run),
+        ];
+    }
+
+    private function periodFromFilters(array $filters): array
+    {
+        $type = $filters['filter_type'] ?? 'all';
+
+        if (! in_array($type, ['all', 'date', 'month', 'year'], true)) {
+            $type = 'all';
+        }
+
+        $from = null;
+        $to = null;
+        $label = 'semua periode';
+
+        try {
+            if ($type === 'date' && ! empty($filters['date'])) {
+                $date = CarbonImmutable::parse((string) $filters['date']);
+                $from = $date->toDateString();
+                $to = $date->toDateString();
+                $label = 'tanggal '.$from;
+            }
+
+            if ($type === 'month' && ! empty($filters['month'])) {
+                $date = CarbonImmutable::createFromFormat('Y-m-d', ((string) $filters['month']).'-01');
+                $from = $date->startOfMonth()->toDateString();
+                $to = $date->endOfMonth()->toDateString();
+                $label = 'bulan '.$date->format('Y-m');
+            }
+
+            if ($type === 'year' && ! empty($filters['year'])) {
+                $date = CarbonImmutable::create((int) $filters['year'], 1, 1);
+                $from = $date->startOfYear()->toDateString();
+                $to = $date->endOfYear()->toDateString();
+                $label = 'tahun '.$date->format('Y');
+            }
+        } catch (\Throwable) {
+            $from = null;
+            $to = null;
+        }
+
+        if ($from === null || $to === null) {
+            $type = 'all';
+            $label = 'semua periode';
+        }
+
+        return [
+            ...$filters,
+            'filter_type' => $type,
+            'date_from' => $from,
+            'date_to' => $to,
+            'label' => $label,
         ];
     }
 

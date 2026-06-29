@@ -18,6 +18,9 @@ class EclatRun extends Model
         'run_code',
         'min_support',
         'min_confidence',
+        'filter_type',
+        'date_from',
+        'date_to',
         'total_transactions',
         'total_items',
         'frequent_itemset_count',
@@ -37,6 +40,8 @@ class EclatRun extends Model
         return [
             'min_support' => 'float',
             'min_confidence' => 'float',
+            'date_from' => 'date:Y-m-d',
+            'date_to' => 'date:Y-m-d',
             'total_transactions' => 'integer',
             'total_items' => 'integer',
             'frequent_itemset_count' => 'integer',

@@ -1,5 +1,6 @@
 <?php
 
+use App\Features\Auth\Controllers\AuthController;
 use App\Features\Documentation\Controllers\OpenApiController;
 use App\Features\Eclat\Controllers\EclatController;
 use App\Features\Reports\Controllers\ReportController;
@@ -13,16 +14,28 @@ Route::prefix('v1')->group(function (): void {
         'message' => 'Snack Eclat API is healthy',
     ]));
 
-    Route::apiResource('snacks', SnackController::class);
-    Route::apiResource('transactions', TransactionController::class);
-
-    Route::get('/eclat/runs', [EclatController::class, 'runs']);
-    Route::post('/eclat/analyze', [EclatController::class, 'analyze']);
-    Route::get('/eclat/runs/{run}', [EclatController::class, 'showRun']);
-    Route::get('/eclat/results', [EclatController::class, 'results']);
-
-    Route::get('/reports/summary', [ReportController::class, 'summary']);
-    Route::get('/reports/recommendations', [ReportController::class, 'recommendations']);
-
+    Route::post('/auth/signup', [AuthController::class, 'signup']);
+    Route::post('/auth/login', [AuthController::class, 'login']);
     Route::get('/documentation/openapi.json', OpenApiController::class);
+
+    Route::middleware('auth.token')->group(function (): void {
+        Route::get('/auth/me', [AuthController::class, 'me']);
+        Route::post('/auth/logout', [AuthController::class, 'logout']);
+
+        Route::middleware('role:admin')->group(function (): void {
+            Route::apiResource('snacks', SnackController::class);
+            Route::post('/transactions/import', [TransactionController::class, 'import']);
+            Route::apiResource('transactions', TransactionController::class);
+
+            Route::get('/eclat/runs', [EclatController::class, 'runs']);
+            Route::post('/eclat/analyze', [EclatController::class, 'analyze']);
+            Route::get('/eclat/runs/{run}', [EclatController::class, 'showRun']);
+            Route::get('/eclat/results', [EclatController::class, 'results']);
+        });
+
+        Route::middleware('role:admin,owner')->group(function (): void {
+            Route::get('/reports/summary', [ReportController::class, 'summary']);
+            Route::get('/reports/recommendations', [ReportController::class, 'recommendations']);
+        });
+    });
 });

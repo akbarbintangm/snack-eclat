@@ -4,6 +4,7 @@ namespace App\Features\Transactions\Controllers;
 
 use App\Features\Transactions\Requests\StoreTransactionRequest;
 use App\Features\Transactions\Requests\UpdateTransactionRequest;
+use App\Features\Transactions\Services\ExcelTransactionImportService;
 use App\Features\Transactions\Services\TransactionService;
 use App\Http\Controllers\Controller;
 use App\Support\Http\ApiResponse;
@@ -16,7 +17,10 @@ class TransactionController extends Controller
 {
     use ApiResponse;
 
-    public function __construct(private readonly TransactionService $service) {}
+    public function __construct(
+        private readonly TransactionService $service,
+        private readonly ExcelTransactionImportService $importer,
+    ) {}
 
     /**
      * @OA\Get(
@@ -57,7 +61,12 @@ class TransactionController extends Controller
     public function store(StoreTransactionRequest $request): JsonResponse
     {
         try {
-            return $this->successResponse($this->service->create($request->validated()), 'Transaction created', [], 201);
+            $payload = $request->validated();
+            $payload['user_id'] = $request->user()?->id;
+            $payload['created_by'] = $request->user()?->id;
+            $payload['updated_by'] = $request->user()?->id;
+
+            return $this->successResponse($this->service->create($payload), 'Transaction created', [], 201);
         } catch (Throwable $e) {
             Log::error('Failed to create transaction', ['payload' => $request->validated(), 'exception' => $e]);
 
@@ -100,7 +109,10 @@ class TransactionController extends Controller
     public function update(UpdateTransactionRequest $request, int $transaction): JsonResponse
     {
         try {
-            return $this->successResponse($this->service->update($transaction, $request->validated()), 'Transaction updated');
+            $payload = $request->validated();
+            $payload['updated_by'] = $request->user()?->id;
+
+            return $this->successResponse($this->service->update($transaction, $payload), 'Transaction updated');
         } catch (Throwable $e) {
             Log::error('Failed to update transaction', ['id' => $transaction, 'exception' => $e]);
 
@@ -128,6 +140,26 @@ class TransactionController extends Controller
             Log::error('Failed to delete transaction', ['id' => $transaction, 'exception' => $e]);
 
             return $this->errorResponse('Unable to delete transaction', 500);
+        }
+    }
+
+    public function import(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'max:10240'],
+        ]);
+
+        try {
+            return $this->successResponse(
+                $this->importer->import($validated['file'], $request->user()?->id),
+                'Transactions imported',
+                [],
+                201
+            );
+        } catch (Throwable $e) {
+            Log::error('Failed to import transactions', ['exception' => $e]);
+
+            return $this->errorResponse('Unable to import transactions', 500);
         }
     }
 }

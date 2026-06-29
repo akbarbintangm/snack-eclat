@@ -45,7 +45,7 @@
             <SkeletonBlock v-if="loading" :lines="4" />
             <div v-else-if="summary?.top_rule" class="rule-highlight">
                 <strong>{{ summary.top_rule.combination_item }}</strong>
-                <span>Support {{ summary.top_rule.support }}% · Confidence {{ summary.top_rule.confidence }}%</span>
+                <span>{{ t('support') }} {{ summary.top_rule.support }}% - {{ t('confidence') }} {{ summary.top_rule.confidence }}%</span>
                 <p>{{ summary.top_rule.recommendation }}</p>
             </div>
             <p v-else class="empty-state">{{ t('noData') }}</p>

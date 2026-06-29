@@ -3,6 +3,7 @@
 namespace App\Features\Eclat\Models;
 
 use App\Support\Models\Concerns\HasAuditFields;
+use App\Features\Transactions\Models\TransactionDetail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,6 +19,7 @@ class HasilEclat extends Model
 
     protected $fillable = [
         'eclat_run_id',
+        'transaction_detail_id',
         'combination_item',
         'antecedent_items',
         'consequent_items',
@@ -49,5 +51,10 @@ class HasilEclat extends Model
     public function run(): BelongsTo
     {
         return $this->belongsTo(EclatRun::class, 'eclat_run_id');
+    }
+
+    public function transactionDetail(): BelongsTo
+    {
+        return $this->belongsTo(TransactionDetail::class);
     }
 }

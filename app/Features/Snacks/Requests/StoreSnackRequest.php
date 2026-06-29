@@ -14,7 +14,7 @@ class StoreSnackRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:100', 'unique:snacks,name'],
+            'name' => ['required', 'string', 'max:1024', 'unique:snacks,name'],
             'status' => ['nullable', 'string', 'max:30'],
         ];
     }

@@ -12,12 +12,14 @@ use Illuminate\Support\Facades\DB;
 
 class EclatRepository implements EclatRepositoryInterface
 {
-    public function transactionsForAnalysis(): Collection
+    public function transactionsForAnalysis(array $period = []): Collection
     {
         return Transaction::query()
             ->with(['details.snack'])
             ->where('status', 'active')
             ->whereHas('details.snack', fn ($query) => $query->where('status', 'active'))
+            ->when($period['date_from'] ?? null, fn ($query, string $date) => $query->whereDate('transaction_date', '>=', $date))
+            ->when($period['date_to'] ?? null, fn ($query, string $date) => $query->whereDate('transaction_date', '<=', $date))
             ->orderBy('transaction_date')
             ->orderBy('id')
             ->get();
@@ -41,6 +43,7 @@ class EclatRepository implements EclatRepositoryInterface
         return EclatRun::query()
             ->withCount('results')
             ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
+            ->when(($filters['filter_type'] ?? 'all') !== 'all', fn ($query) => $this->applyRunPeriodFilter($query, $filters))
             ->latest('created_at')
             ->paginate($perPage);
     }
@@ -53,10 +56,13 @@ class EclatRepository implements EclatRepositoryInterface
     public function paginateResults(array $filters = [], int $perPage = 10): LengthAwarePaginator
     {
         return HasilEclat::query()
-            ->with('run:id,run_code,min_support,min_confidence,created_at')
+            ->with('run:id,run_code,min_support,min_confidence,filter_type,date_from,date_to,created_at')
             ->when($filters['run_id'] ?? null, fn ($query, int $runId) => $query->where('eclat_run_id', $runId))
             ->when($filters['min_confidence'] ?? null, fn ($query, float $confidence) => $query->where('confidence', '>=', $confidence))
             ->when($filters['min_support'] ?? null, fn ($query, float $support) => $query->where('support', '>=', $support))
+            ->when(($filters['filter_type'] ?? 'all') !== 'all', function ($query) use ($filters): void {
+                $query->whereHas('run', fn ($runQuery) => $this->applyRunPeriodFilter($runQuery, $filters));
+            })
             ->where('status', 'active')
             ->orderByDesc('confidence')
             ->orderByDesc('support')
@@ -66,5 +72,11 @@ class EclatRepository implements EclatRepositoryInterface
     public function latestRun(): ?EclatRun
     {
         return EclatRun::query()->with('results')->latest('created_at')->first();
+    }
+
+    private function applyRunPeriodFilter($query, array $filters): void
+    {
+        $query->when($filters['date_from'] ?? null, fn ($dateQuery, string $date) => $dateQuery->whereDate('date_from', '>=', $date))
+            ->when($filters['date_to'] ?? null, fn ($dateQuery, string $date) => $dateQuery->whereDate('date_to', '<=', $date));
     }
 }

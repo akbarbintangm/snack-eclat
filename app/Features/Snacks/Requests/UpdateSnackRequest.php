@@ -15,7 +15,7 @@ class UpdateSnackRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['sometimes', 'required', 'string', 'max:100', Rule::unique('snacks', 'name')->ignore($this->route('snack'))],
+            'name' => ['sometimes', 'required', 'string', 'max:1024', Rule::unique('snacks', 'name')->ignore($this->route('snack'))],
             'status' => ['sometimes', 'required', 'string', 'max:30'],
         ];
     }
