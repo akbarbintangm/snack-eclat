@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Features\Eclat\Models\EclatRun;
+use App\Features\Eclat\Models\HasilEclat;
 use App\Features\Transactions\Models\Transaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -36,6 +37,7 @@ class DatabaseSchemaTest extends TestCase
         $this->assertTrue(Hash::check('password', $admin->password));
         $this->assertTrue(Hash::check('password', $owner->password));
         $this->assertGreaterThanOrEqual(10, Transaction::query()->count());
-        $this->assertGreaterThanOrEqual(1, EclatRun::query()->count());
+        $this->assertSame(2, EclatRun::query()->latest('id')->firstOrFail()->rule_count);
+        $this->assertSame(2, HasilEclat::query()->count());
     }
 }

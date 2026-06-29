@@ -35,6 +35,10 @@ class DatabaseSeeder extends Seeder
             'Sambal Bawang Primarasa Khas Surabaya Tradisional 150 gr',
             'Keripik Paru Sapi Camilan Kerupuk Paru Goreng Cap Kepala Singa Khas Surabaya 100 gr',
             'Bumbu Pecel Madiun Asli Sambel Pecel Cap Kepala Singa 200 gr',
+            'Pop U Corn OG',
+            'Pop U Corn Cheese',
+            'Pop U Corn Choco',
+            'Pia Kuno 10pcs',
         ])
             ->mapWithKeys(fn (string $name): array => [
                 $name => Snack::query()->firstOrCreate(['name' => $name], [
@@ -117,6 +121,42 @@ class DatabaseSeeder extends Seeder
             ]],
         ];
 
+        $proposalDataset = [
+            'T1' => ['Pop U Corn OG', 'Pop U Corn Cheese'],
+            'T2' => ['Pop U Corn Cheese', 'Pop U Corn Choco'],
+            'T3' => ['Pop U Corn OG', 'Pia Kuno 10pcs'],
+            'T4' => ['Pop U Corn Cheese', 'Pia Kuno 10pcs'],
+            'T5' => ['Pop U Corn OG', 'Pop U Corn Choco'],
+            'T6' => ['Pop U Corn OG', 'Pop U Corn Cheese', 'Pop U Corn Choco'],
+            'T7' => ['Pop U Corn Cheese', 'Pia Kuno 10pcs'],
+            'T8' => ['Pop U Corn OG', 'Pia Kuno 10pcs'],
+            'T9' => ['Pop U Corn OG', 'Pop U Corn Cheese'],
+            'T10' => ['Pop U Corn Choco', 'Pia Kuno 10pcs'],
+            'T11' => ['Pop U Corn OG', 'Pop U Corn Cheese'],
+            'T12' => ['Pop U Corn OG', 'Pop U Corn Choco'],
+            'T13' => ['Pop U Corn Cheese', 'Pop U Corn Choco'],
+            'T14' => ['Pop U Corn OG', 'Pia Kuno 10pcs'],
+            'T15' => ['Pop U Corn Cheese', 'Pia Kuno 10pcs'],
+            'T16' => ['Pop U Corn OG', 'Pop U Corn Cheese', 'Pia Kuno 10pcs'],
+            'T17' => ['Pop U Corn Choco', 'Pia Kuno 10pcs'],
+            'T18' => ['Pop U Corn OG', 'Pop U Corn Cheese'],
+            'T19' => ['Pop U Corn OG', 'Pop U Corn Choco'],
+            'T20' => ['Pop U Corn Cheese', 'Pia Kuno 10pcs'],
+            'T21' => ['Pop U Corn OG', 'Pop U Corn Cheese'],
+            'T22' => ['Pop U Corn Choco', 'Pia Kuno 10pcs'],
+            'T23' => ['Pop U Corn OG', 'Pia Kuno 10pcs'],
+            'T24' => ['Pop U Corn Cheese', 'Pop U Corn Choco'],
+            'T25' => ['Pop U Corn OG', 'Pop U Corn Cheese', 'Pop U Corn Choco'],
+        ];
+
+        foreach ($proposalDataset as $reference => $items) {
+            $transactions[] = [
+                'reference' => 'PROP-20251204-'.$reference,
+                'date' => '2025-12-04',
+                'items' => $items,
+            ];
+        }
+
         foreach ($transactions as $seedTransaction) {
             $transaction = Transaction::query()->firstOrCreate([
                 'reference_no' => $seedTransaction['reference'],
@@ -140,7 +180,10 @@ class DatabaseSeeder extends Seeder
         }
 
         if (EclatRun::query()->count() === 0) {
-            app(EclatService::class)->analyze(30, 50, ['filter_type' => 'all']);
+            app(EclatService::class)->analyze(30, 50, [
+                'filter_type' => 'date',
+                'date' => '2025-12-04',
+            ]);
         }
     }
 

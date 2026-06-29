@@ -60,6 +60,10 @@ const messages = {
         allPeriods: 'Semua Periode',
         flowchart: 'Flowchart',
         results: 'Hasil',
+        emptyRules: 'Belum ada rule untuk run ini.',
+        emptyRulesHighThreshold: 'Belum ada rule untuk parameter ini. Turunkan support atau confidence lalu jalankan analisis lagi.',
+        emptyRulesNoItemset: 'Belum ada frequent itemset pada periode dan support ini.',
+        runRecommendedAnalysis: 'Jalankan Analisis Rekomendasi',
     },
     en: {
         appName: 'Snack Eclat',
@@ -118,6 +122,10 @@ const messages = {
         allPeriods: 'All Periods',
         flowchart: 'Flowchart',
         results: 'Results',
+        emptyRules: 'No rules for this run yet.',
+        emptyRulesHighThreshold: 'No rules for these parameters. Lower support or confidence, then run analysis again.',
+        emptyRulesNoItemset: 'No frequent itemsets for this period and support.',
+        runRecommendedAnalysis: 'Run Recommended Analysis',
     },
 };
 

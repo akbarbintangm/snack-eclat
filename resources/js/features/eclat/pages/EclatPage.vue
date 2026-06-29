@@ -29,7 +29,7 @@
             </button>
 
             <label class="form-label mt-4" for="minSupport">{{ t('support') }} <strong>{{ minSupport }}%</strong></label>
-            <input id="minSupport" v-model="minSupport" class="form-range" type="range" min="0" max="100">
+            <input id="minSupport" v-model="minSupport" class="form-range" type="range" min="0.1" max="100" step="0.1">
 
             <label class="form-label mt-4" for="minConfidence">{{ t('confidence') }} <strong>{{ minConfidence }}%</strong></label>
             <input id="minConfidence" v-model="minConfidence" class="form-range" type="range" min="0" max="100">
@@ -75,7 +75,13 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="run in runs" :key="run.id">
+                        <tr
+                            v-for="run in runs"
+                            :key="run.id"
+                            class="clickable-row"
+                            :class="{ 'is-active': run.id === activeRunId }"
+                            @click="selectRun(run.id)"
+                        >
                             <td class="fw-semibold">{{ run.run_code }}</td>
                             <td>{{ formatDisplayDateRange(run.date_from, run.date_to) }}</td>
                             <td>{{ run.min_support }}%</td>
@@ -113,7 +119,12 @@
                         </tr>
                     </tbody>
                 </table>
-                <p v-if="results.length === 0" class="empty-state">{{ t('noData') }}</p>
+                <div v-if="results.length === 0" class="empty-state">
+                    <p>{{ rulesEmptyMessage }}</p>
+                    <button class="btn btn-outline-success" type="button" :disabled="analyzing" @click="runRecommendedAnalysis">
+                        {{ t('runRecommendedAnalysis') }}
+                    </button>
+                </div>
             </div>
             <PaginationBar :meta="resultMeta" @change="loadResults" />
         </article>
@@ -150,8 +161,8 @@ const today = new Date().toISOString().slice(0, 10);
 const currentYear = new Date().getFullYear();
 const loading = ref(true);
 const analyzing = ref(false);
-const minSupport = ref(2);
-const minConfidence = ref(50);
+const minSupport = ref(0.1);
+const minConfidence = ref(30);
 const filterType = ref<EclatFilterType>('all');
 const filterDate = ref(today);
 const filterMonth = ref(today.slice(0, 7));
@@ -159,6 +170,7 @@ const filterYear = ref(currentYear);
 const runs = ref<EclatRun[]>([]);
 const results = ref<EclatResult[]>([]);
 const latestRunDetail = ref<EclatRunDetail | null>(null);
+const activeRunId = ref<number | null>(null);
 const runMeta = ref<PageMeta | null>(null);
 const resultMeta = ref<PageMeta | null>(null);
 const errorMessage = ref('');
@@ -166,6 +178,19 @@ const errorStatus = ref<number | undefined>();
 
 const latestSteps = computed<EclatStep[]>(() => latestRunDetail.value?.steps ?? []);
 const latestItemsets = computed<EclatItemset[]>(() => latestRunDetail.value?.run.frequent_itemsets ?? []);
+const rulesEmptyMessage = computed(() => {
+    const run = latestRunDetail.value?.run;
+
+    if (run && run.frequent_itemset_count === 0) {
+        return t('emptyRulesNoItemset');
+    }
+
+    if (run && (Number(run.min_support) >= 30 || Number(run.min_confidence) >= 80)) {
+        return t('emptyRulesHighThreshold');
+    }
+
+    return t('emptyRules');
+});
 const periodParams = computed<EclatFilterParams>(() => {
     if (filterType.value === 'date') {
         return { filter_type: 'date', date: filterDate.value };
@@ -189,7 +214,12 @@ async function loadRuns(page = runMeta.value?.current_page ?? 1): Promise<void> 
 }
 
 async function loadResults(page = resultMeta.value?.current_page ?? 1): Promise<void> {
-    const response = await fetchEclatResults({ page, per_page: 10, ...periodParams.value });
+    const response = await fetchEclatResults({
+        page,
+        per_page: 10,
+        ...periodParams.value,
+        run_id: activeRunId.value ?? undefined,
+    });
     results.value = response.data;
     resultMeta.value = response.meta;
 }
@@ -200,11 +230,15 @@ async function loadAll(): Promise<void> {
     errorStatus.value = undefined;
 
     try {
-        await Promise.all([loadRuns(1), loadResults(1)]);
+        await loadRuns(1);
+        activeRunId.value = runs.value[0]?.id ?? null;
         if (runs.value[0]) {
             const response = await fetchEclatRun(runs.value[0].id);
             latestRunDetail.value = response.data;
+        } else {
+            latestRunDetail.value = null;
         }
+        await loadResults(1);
     } catch (error) {
         errorMessage.value = error instanceof ApiClientError ? error.message : 'Gagal memuat ECLAT';
         errorStatus.value = error instanceof ApiClientError ? error.statusCode : undefined;
@@ -221,7 +255,9 @@ async function submitAnalysis(): Promise<void> {
     try {
         const response = await runEclatAnalysis(Number(minSupport.value), Number(minConfidence.value), periodParams.value);
         latestRunDetail.value = response.data;
-        await Promise.all([loadRuns(1), loadResults(1)]);
+        activeRunId.value = response.data.run.id;
+        await loadRuns(1);
+        await loadResults(1);
     } catch (error) {
         errorMessage.value = error instanceof ApiClientError ? error.message : 'Gagal menjalankan ECLAT';
         errorStatus.value = error instanceof ApiClientError ? error.statusCode : undefined;
@@ -232,6 +268,27 @@ async function submitAnalysis(): Promise<void> {
 
 async function applyFilter(): Promise<void> {
     await loadAll();
+}
+
+async function selectRun(runId: number): Promise<void> {
+    activeRunId.value = runId;
+    errorMessage.value = '';
+    errorStatus.value = undefined;
+
+    try {
+        const response = await fetchEclatRun(runId);
+        latestRunDetail.value = response.data;
+        await loadResults(1);
+    } catch (error) {
+        errorMessage.value = error instanceof ApiClientError ? error.message : 'Gagal memuat ECLAT';
+        errorStatus.value = error instanceof ApiClientError ? error.statusCode : undefined;
+    }
+}
+
+async function runRecommendedAnalysis(): Promise<void> {
+    minSupport.value = 0.1;
+    minConfidence.value = 30;
+    await submitAnalysis();
 }
 
 onMounted(loadAll);

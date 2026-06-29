@@ -447,6 +447,18 @@ a {
     text-align: center;
 }
 
+.empty-state p {
+    margin: 0 0 12px;
+}
+
+.data-table tbody tr.clickable-row {
+    cursor: pointer;
+}
+
+.data-table tbody tr.is-active td {
+    background: var(--se-soft);
+}
+
 .pagination-bar {
     display: flex;
     align-items: center;

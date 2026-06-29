@@ -86,7 +86,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('eclat_run_id')->nullable()->constrained('eclat_runs')->nullOnDelete();
             $table->foreignId('transaction_detail_id')->nullable()->constrained('transaction_details')->nullOnDelete();
-            $table->string('combination_item', 200);
+            $table->text('combination_item');
             $table->json('antecedent_items');
             $table->json('consequent_items');
             $table->unsignedInteger('transaction_count')->default(0);
