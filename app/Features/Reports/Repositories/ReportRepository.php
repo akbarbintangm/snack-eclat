@@ -8,6 +8,7 @@ use App\Features\Reports\Interfaces\ReportRepositoryInterface;
 use App\Features\Snacks\Models\Snack;
 use App\Features\Transactions\Models\Transaction;
 use App\Features\Transactions\Models\TransactionDetail;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class ReportRepository implements ReportRepositoryInterface
 {
@@ -30,15 +31,19 @@ class ReportRepository implements ReportRepositoryInterface
         ];
     }
 
-    public function recommendations(int $limit = 5): array
+    public function recommendations(array $filters = [], int $perPage = 10): LengthAwarePaginator
     {
         return HasilEclat::query()
             ->with('run:id,run_code,min_support,min_confidence,created_at')
             ->where('status', 'active')
+            ->when($filters['search'] ?? null, function ($query, string $search): void {
+                $query->where(function ($searchQuery) use ($search): void {
+                    $searchQuery->where('combination_item', 'like', "%{$search}%")
+                        ->orWhere('recommendation', 'like', "%{$search}%");
+                });
+            })
             ->orderByDesc('confidence')
             ->orderByDesc('support')
-            ->limit($limit)
-            ->get()
-            ->all();
+            ->paginate($perPage);
     }
 }

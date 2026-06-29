@@ -31,6 +31,8 @@ class TransactionController extends Controller
      *     @OA\Parameter(name="page", in="query", @OA\Schema(type="integer")),
      *     @OA\Parameter(name="per_page", in="query", @OA\Schema(type="integer")),
      *     @OA\Parameter(name="search", in="query", @OA\Schema(type="string")),
+     *     @OA\Parameter(name="date_from", in="query", @OA\Schema(type="string", format="date")),
+     *     @OA\Parameter(name="date_to", in="query", @OA\Schema(type="string", format="date")),
      *     @OA\Response(response=200, description="Daftar transaksi")
      * )
      */
@@ -140,6 +142,17 @@ class TransactionController extends Controller
             Log::error('Failed to delete transaction', ['id' => $transaction, 'exception' => $e]);
 
             return $this->errorResponse('Unable to delete transaction', 500);
+        }
+    }
+
+    public function destroyAll(): JsonResponse
+    {
+        try {
+            return $this->successResponse($this->service->deleteAllData(), 'Transaction data deleted');
+        } catch (Throwable $e) {
+            Log::error('Failed to delete transaction data', ['exception' => $e]);
+
+            return $this->errorResponse('Unable to delete transaction data', 500);
         }
     }
 

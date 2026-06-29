@@ -18,7 +18,7 @@ export interface EclatRun {
     run_code: string;
     min_support: number;
     min_confidence: number;
-    filter_type: 'all' | 'date' | 'month' | 'year';
+    filter_type: EclatFilterType;
     date_from?: string | null;
     date_to?: string | null;
     total_transactions: number;
@@ -55,11 +55,10 @@ export interface EclatRunDetail {
     steps: EclatStep[];
 }
 
-export type EclatFilterType = 'all' | 'date' | 'month' | 'year';
+export type EclatFilterType = 'all' | 'range';
 
 export interface EclatFilterParams {
     filter_type?: EclatFilterType;
-    date?: string;
-    month?: string;
-    year?: number;
+    date_from?: string;
+    date_to?: string;
 }

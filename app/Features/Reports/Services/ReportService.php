@@ -4,6 +4,7 @@ namespace App\Features\Reports\Services;
 
 use App\Features\Eclat\Services\EclatService;
 use App\Features\Reports\Interfaces\ReportRepositoryInterface;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class ReportService
 {
@@ -20,8 +21,8 @@ class ReportService
         return $summary;
     }
 
-    public function recommendations(int $limit = 5): array
+    public function recommendations(array $filters, int $perPage): LengthAwarePaginator
     {
-        return $this->reports->recommendations($limit);
+        return $this->reports->recommendations($filters, $perPage);
     }
 }

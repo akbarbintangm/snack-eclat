@@ -2,8 +2,11 @@
 
 namespace App\Features\Transactions\Repositories;
 
+use App\Features\Eclat\Models\EclatRun;
+use App\Features\Eclat\Models\HasilEclat;
 use App\Features\Transactions\Interfaces\TransactionRepositoryInterface;
 use App\Features\Transactions\Models\Transaction;
+use App\Features\Transactions\Models\TransactionDetail;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -14,10 +17,12 @@ class TransactionRepository implements TransactionRepositoryInterface
         return Transaction::query()
             ->with(['details.snack'])
             ->when($filters['search'] ?? null, function ($query, string $search): void {
-                $query->where('reference_no', 'like', "%{$search}%")
-                    ->orWhereHas('details.snack', function ($snackQuery) use ($search): void {
-                        $snackQuery->where('name', 'like', "%{$search}%");
-                    });
+                $query->where(function ($searchQuery) use ($search): void {
+                    $searchQuery->where('reference_no', 'like', "%{$search}%")
+                        ->orWhereHas('details.snack', function ($snackQuery) use ($search): void {
+                            $snackQuery->where('name', 'like', "%{$search}%");
+                        });
+                });
             })
             ->when($filters['status'] ?? null, function ($query, string $status): void {
                 $query->where('status', $status);
@@ -74,6 +79,25 @@ class TransactionRepository implements TransactionRepositoryInterface
         DB::transaction(function () use ($transaction): void {
             $transaction->details()->delete();
             $transaction->delete();
+        });
+    }
+
+    public function deleteAllData(): array
+    {
+        return DB::transaction(function (): array {
+            $counts = [
+                'transactions_deleted' => Transaction::query()->withTrashed()->count(),
+                'transaction_details_deleted' => TransactionDetail::query()->withTrashed()->count(),
+                'analysis_runs_deleted' => EclatRun::query()->withTrashed()->count(),
+                'analysis_rules_deleted' => HasilEclat::query()->withTrashed()->count(),
+            ];
+
+            HasilEclat::query()->withTrashed()->forceDelete();
+            EclatRun::query()->withTrashed()->forceDelete();
+            TransactionDetail::query()->withTrashed()->forceDelete();
+            Transaction::query()->withTrashed()->forceDelete();
+
+            return $counts;
         });
     }
 

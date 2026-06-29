@@ -93,7 +93,7 @@ class EclatService
     {
         $type = $filters['filter_type'] ?? 'all';
 
-        if (! in_array($type, ['all', 'date', 'month', 'year'], true)) {
+        if (! in_array($type, ['all', 'range'], true)) {
             $type = 'all';
         }
 
@@ -102,25 +102,17 @@ class EclatService
         $label = 'semua periode';
 
         try {
-            if ($type === 'date' && ! empty($filters['date'])) {
-                $date = CarbonImmutable::parse((string) $filters['date']);
-                $from = $date->toDateString();
-                $to = $date->toDateString();
-                $label = 'tanggal '.$from;
-            }
+            if ($type === 'range' && ! empty($filters['date_from']) && ! empty($filters['date_to'])) {
+                $fromDate = CarbonImmutable::parse((string) $filters['date_from']);
+                $toDate = CarbonImmutable::parse((string) $filters['date_to']);
 
-            if ($type === 'month' && ! empty($filters['month'])) {
-                $date = CarbonImmutable::createFromFormat('Y-m-d', ((string) $filters['month']).'-01');
-                $from = $date->startOfMonth()->toDateString();
-                $to = $date->endOfMonth()->toDateString();
-                $label = 'bulan '.$date->format('Y-m');
-            }
+                if ($fromDate->greaterThan($toDate)) {
+                    [$fromDate, $toDate] = [$toDate, $fromDate];
+                }
 
-            if ($type === 'year' && ! empty($filters['year'])) {
-                $date = CarbonImmutable::create((int) $filters['year'], 1, 1);
-                $from = $date->startOfYear()->toDateString();
-                $to = $date->endOfYear()->toDateString();
-                $label = 'tahun '.$date->format('Y');
+                $from = $fromDate->toDateString();
+                $to = $toDate->toDateString();
+                $label = 'tanggal '.$from.' sampai '.$to;
             }
         } catch (\Throwable) {
             $from = null;

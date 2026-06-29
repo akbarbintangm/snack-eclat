@@ -468,6 +468,28 @@ a {
     color: var(--se-muted);
 }
 
+.pagination-pages {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.pagination-pages .btn.active {
+    background: var(--se-green);
+    border-color: var(--se-green);
+    color: #fff;
+}
+
+.pagination-ellipsis {
+    align-items: center;
+    color: var(--se-muted);
+    display: inline-flex;
+    font-weight: 800;
+    min-height: 31px;
+    padding: 0 4px;
+}
+
 .btn-success {
     --bs-btn-bg: var(--se-green);
     --bs-btn-border-color: var(--se-green);
