@@ -67,7 +67,7 @@ class AuthApiTest extends TestCase
         $this->getJson('/api/v1/transactions')->assertUnauthorized();
     }
 
-    public function test_owner_can_read_reports_but_cannot_manage_transactions(): void
+    public function test_owner_can_access_reports_but_not_operational_apis(): void
     {
         $owner = User::factory()->create([
             'level' => 'owner',
@@ -81,6 +81,39 @@ class AuthApiTest extends TestCase
 
         $this->withHeader('Authorization', 'Bearer '.$token)
             ->getJson('/api/v1/transactions')
+            ->assertForbidden();
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/v1/snacks')
+            ->assertForbidden();
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/v1/eclat/results')
+            ->assertForbidden();
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/v1/reports/recommendations')
+            ->assertOk();
+    }
+
+    public function test_admin_can_view_association_rules_but_not_report_recommendations(): void
+    {
+        $admin = User::factory()->create([
+            'level' => 'admin',
+        ]);
+        $token = 'admin-token';
+        $admin->forceFill(['api_token_hash' => hash('sha256', $token)])->save();
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/v1/reports/summary')
+            ->assertOk();
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/v1/eclat/results')
+            ->assertOk();
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/v1/reports/recommendations')
             ->assertForbidden();
     }
 }

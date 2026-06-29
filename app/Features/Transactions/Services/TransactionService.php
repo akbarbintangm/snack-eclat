@@ -37,4 +37,9 @@ class TransactionService
     {
         $this->transactions->delete($this->transactions->find($id));
     }
+
+    public function deleteAllData(): array
+    {
+        return $this->transactions->deleteAllData();
+    }
 }

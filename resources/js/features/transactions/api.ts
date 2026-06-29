@@ -18,6 +18,10 @@ export function deleteTransaction(id: number): Promise<ApiResponse<null>> {
     return deleteData<null>(`/transactions/${id}`);
 }
 
+export function deleteTransactionData(): Promise<ApiResponse<Record<string, number>>> {
+    return deleteData<Record<string, number>>('/transactions');
+}
+
 export function importTransactions(file: File): Promise<ApiResponse<TransactionImportSummary>> {
     const formData = new FormData();
     formData.append('file', file);

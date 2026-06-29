@@ -98,8 +98,8 @@ const navItems = computed(() => {
         { to: '/snacks', label: t('snacks'), roles: ['admin'] },
         { to: '/transactions', label: t('transactions'), roles: ['admin'] },
         { to: '/eclat', label: t('eclat'), roles: ['admin'] },
-        { to: '/reports', label: t('reports'), roles: ['admin', 'owner'] },
-        { to: '/docs', label: t('docs'), roles: ['admin'] },
+        { to: '/reports', label: t('reports'), roles: ['owner'] },
+        { to: '/docs', label: t('docs'), roles: ['admin', 'owner'] },
     ];
 
     return items.filter((item) => !role || item.roles.includes(role));

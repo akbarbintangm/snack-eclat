@@ -2,9 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Features\Snacks\Models\Snack;
+use App\Features\Transactions\Models\Transaction;
 use App\Features\Eclat\Models\EclatRun;
 use App\Features\Eclat\Models\HasilEclat;
-use App\Features\Transactions\Models\Transaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -25,7 +26,7 @@ class DatabaseSchemaTest extends TestCase
         $this->assertTrue(Schema::hasColumns('eclat_runs', ['filter_type', 'date_from', 'date_to']));
     }
 
-    public function test_database_seeder_prepares_login_users_transactions_and_initial_eclat_run(): void
+    public function test_database_seeder_prepares_only_login_users(): void
     {
         $this->seed();
 
@@ -36,8 +37,10 @@ class DatabaseSchemaTest extends TestCase
         $this->assertSame('owner', $owner->level);
         $this->assertTrue(Hash::check('password', $admin->password));
         $this->assertTrue(Hash::check('password', $owner->password));
-        $this->assertGreaterThanOrEqual(10, Transaction::query()->count());
-        $this->assertSame(2, EclatRun::query()->latest('id')->firstOrFail()->rule_count);
-        $this->assertSame(2, HasilEclat::query()->count());
+        $this->assertSame(2, User::query()->count());
+        $this->assertSame(0, Snack::query()->count());
+        $this->assertSame(0, Transaction::query()->count());
+        $this->assertSame(0, EclatRun::query()->count());
+        $this->assertSame(0, HasilEclat::query()->count());
     }
 }
