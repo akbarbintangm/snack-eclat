@@ -28,6 +28,7 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/transactions/import', [TransactionController::class, 'import']);
             Route::apiResource('transactions', TransactionController::class);
 
+            Route::get('/eclat/transaction-period', [EclatController::class, 'transactionPeriod']);
             Route::get('/eclat/runs', [EclatController::class, 'runs']);
             Route::post('/eclat/analyze', [EclatController::class, 'analyze']);
             Route::get('/eclat/runs/{run}', [EclatController::class, 'showRun']);
