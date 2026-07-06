@@ -24,4 +24,31 @@ class SimpleXlsxReaderTest extends TestCase
         $this->assertSame('PROMO BUNDLE POPCORN 3 RASA | Camilan Snack Jagung 300gr', $rows[0]['values']['nama_produk']);
         $this->assertSame('aniki1989', $rows[0]['values']['username_pembeli']);
     }
+
+    public function test_it_reads_workbooks_with_absolute_worksheet_relationship_targets(): void
+    {
+        $path = $this->createXlsxWorkbook([
+            ['Waktu Pesanan Dibuat', 'Nama Produk', 'Jumlah'],
+            ['2025-12-01 10:00', 'Popcorn Original', '2'],
+        ], absoluteWorksheetTarget: true);
+
+        $rows = (new SimpleXlsxReader())->read($path);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('Popcorn Original', $rows[0]['values']['nama_produk']);
+        $this->assertSame('2', $rows[0]['values']['jumlah']);
+    }
+
+    public function test_it_reads_shared_strings_without_count_attributes(): void
+    {
+        $path = $this->createXlsxWorkbook([
+            ['Waktu Pesanan Dibuat', 'Nama Produk', 'Jumlah'],
+            ['2025-12-01 10:00', 'Pia Kuno', '1'],
+        ], omitSharedStringCountAttributes: true);
+
+        $rows = (new SimpleXlsxReader())->read($path);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('Pia Kuno', $rows[0]['values']['nama_produk']);
+    }
 }
