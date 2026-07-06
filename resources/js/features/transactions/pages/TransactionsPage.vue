@@ -37,7 +37,11 @@
             <input id="referenceNo" v-model="form.reference_no" class="form-control" placeholder="Contoh: T26">
 
             <label class="form-label mt-3" for="transactionDate">{{ t('date') }}</label>
-            <input id="transactionDate" v-model="form.transaction_date" class="form-control date-control" type="date" required @click="openNativeDatePicker" @focus="openNativeDatePicker">
+            <DatePickerControl
+                id="transactionDate"
+                v-model="form.transaction_date"
+                required
+            />
 
             <div class="mt-3">
                 <label class="form-label">{{ t('itemSnack') }}</label>
@@ -74,10 +78,16 @@
         <article class="content-panel">
             <div class="table-toolbar">
                 <input v-model="transactionSearch" class="form-control" :placeholder="t('searchTransaction')" @keyup.enter="applyTransactionFilters">
-                <input v-model="transactionDateFrom" class="form-control date-control" type="date" :aria-label="t('startDate')" :title="t('startDate')" @click="openNativeDatePicker"
-                       @focus="openNativeDatePicker" @keyup.enter="applyTransactionFilters">
-                <input v-model="transactionDateTo" class="form-control date-control" type="date" :aria-label="t('endDate')" :title="t('endDate')" @click="openNativeDatePicker"
-                       @focus="openNativeDatePicker" @keyup.enter="applyTransactionFilters">
+                <DatePickerControl
+                    v-model="transactionDateFrom"
+                    :aria-label="t('startDate')"
+                    :title="t('startDate')"
+                />
+                <DatePickerControl
+                    v-model="transactionDateTo"
+                    :aria-label="t('endDate')"
+                    :title="t('endDate')"
+                />
                 <button class="btn btn-outline-success" type="button" @click="applyTransactionFilters">{{ t('search') }}</button>
             </div>
             <SkeletonBlock v-if="loading" :lines="7" />
@@ -112,7 +122,8 @@
 <script setup lang="ts">
     import { computed, onMounted, ref } from 'vue';
     import { ApiClientError, type PageMeta } from '../../../shared/api/types';
-    import { formatDisplayDate, openNativeDatePicker } from '../../../shared/dateFormatter';
+    import { formatDisplayDate } from '../../../shared/dateFormatter';
+    import DatePickerControl from '../../../shared/components/DatePickerControl.vue';
     import ErrorBanner from '../../../shared/components/ErrorBanner.vue';
     import FullPageLoader from '../../../shared/components/FullPageLoader.vue';
     import PageHeader from '../../../shared/components/PageHeader.vue';

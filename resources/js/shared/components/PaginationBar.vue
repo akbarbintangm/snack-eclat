@@ -1,5 +1,5 @@
 <template>
-    <div v-if="meta && meta.last_page > 1" class="pagination-bar">
+    <div v-if="meta && (always || meta.last_page > 1)" class="pagination-bar">
         <span>{{ t('page') }} {{ meta.current_page }} / {{ meta.last_page }}</span>
         <div class="pagination-pages" aria-label="Pagination">
             <button class="btn btn-sm btn-outline-success" type="button" :disabled="meta.current_page <= 1" @click="goToPage(meta.current_page - 1)">
@@ -32,6 +32,7 @@ import { t } from '../i18n';
 
 const props = defineProps<{
     meta?: PageMeta | null;
+    always?: boolean;
 }>();
 
 const emit = defineEmits<{

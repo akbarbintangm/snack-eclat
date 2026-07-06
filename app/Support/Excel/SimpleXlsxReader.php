@@ -45,7 +45,7 @@ class SimpleXlsxReader
     {
         $xml = $this->xml($zip, 'xl/sharedStrings.xml', false);
 
-        if (! $xml) {
+        if ($xml === null) {
             return [];
         }
 
@@ -94,7 +94,7 @@ class SimpleXlsxReader
 
             $sheets[] = [
                 'name' => (string) $attributes['name'],
-                'path' => str_starts_with($target, 'xl/') ? $target : 'xl/'.ltrim($target, '/'),
+                'path' => $this->workbookRelationshipPath($target),
             ];
         }
 
@@ -219,6 +219,13 @@ class SimpleXlsxReader
         $normalized = preg_replace('/[^a-z0-9]+/', '_', $normalized) ?: '';
 
         return trim($normalized, '_');
+    }
+
+    private function workbookRelationshipPath(string $target): string
+    {
+        $target = ltrim(str_replace('\\', '/', trim($target)), '/');
+
+        return str_starts_with($target, 'xl/') ? $target : 'xl/'.$target;
     }
 
     private function xml(ZipArchive $zip, string $path, bool $required = true): ?SimpleXMLElement

@@ -56,6 +56,8 @@ class EclatRepository implements EclatRepositoryInterface
 
     public function paginateResults(array $filters = [], int $perPage = 10): LengthAwarePaginator
     {
+        $runId = $filters['run_id'] ?? null;
+
         return HasilEclat::query()
             ->with('run:id,run_code,min_support,min_confidence,filter_type,date_from,date_to,created_at')
             ->when($filters['search'] ?? null, function ($query, string $search): void {
@@ -64,10 +66,10 @@ class EclatRepository implements EclatRepositoryInterface
                         ->orWhere('recommendation', 'like', "%{$search}%");
                 });
             })
-            ->when($filters['run_id'] ?? null, fn ($query, int $runId) => $query->where('eclat_run_id', $runId))
+            ->when($runId, fn ($query, int $selectedRunId) => $query->where('eclat_run_id', $selectedRunId))
             ->when($filters['min_confidence'] ?? null, fn ($query, float $confidence) => $query->where('confidence', '>=', $confidence))
             ->when($filters['min_support'] ?? null, fn ($query, float $support) => $query->where('support', '>=', $support))
-            ->when(($filters['filter_type'] ?? 'all') !== 'all', function ($query) use ($filters): void {
+            ->when(! $runId && ($filters['filter_type'] ?? 'all') !== 'all', function ($query) use ($filters): void {
                 $query->whereHas('run', fn ($runQuery) => $this->applyRunPeriodFilter($runQuery, $filters));
             })
             ->where('status', 'active')
