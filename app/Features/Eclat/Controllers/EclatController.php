@@ -17,6 +17,17 @@ class EclatController extends Controller
 
     public function __construct(private readonly EclatService $service) {}
 
+    public function transactionPeriod(): JsonResponse
+    {
+        try {
+            return $this->successResponse($this->service->transactionDateRange(), 'ECLAT transaction period loaded');
+        } catch (Throwable $e) {
+            Log::error('Failed to load ECLAT transaction period', ['exception' => $e]);
+
+            return $this->errorResponse('Unable to load ECLAT transaction period', 500);
+        }
+    }
+
     /**
      * @OA\Get(
      *     path="/api/v1/eclat/runs",

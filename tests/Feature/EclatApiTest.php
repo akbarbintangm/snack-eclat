@@ -25,6 +25,13 @@ class EclatApiTest extends TestCase
         $this->createTransaction('NOV-1', '2025-11-01', [$kerupuk->id]);
 
         $this->withHeaders($headers)
+            ->getJson('/api/v1/eclat/transaction-period')
+            ->assertOk()
+            ->assertJsonPath('data.date_from', '2025-10-02')
+            ->assertJsonPath('data.date_to', '2025-11-01')
+            ->assertJsonPath('data.total_transactions', 3);
+
+        $this->withHeaders($headers)
             ->postJson('/api/v1/eclat/analyze', [
                 'min_support' => 50,
                 'min_confidence' => 50,

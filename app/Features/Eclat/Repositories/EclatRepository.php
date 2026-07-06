@@ -25,6 +25,21 @@ class EclatRepository implements EclatRepositoryInterface
             ->get();
     }
 
+    public function transactionDateRange(): array
+    {
+        $range = Transaction::query()
+            ->where('status', 'active')
+            ->whereHas('details.snack', fn ($query) => $query->where('status', 'active'))
+            ->selectRaw('min(transaction_date) as date_from, max(transaction_date) as date_to, count(*) as total_transactions')
+            ->first();
+
+        return [
+            'date_from' => $range?->date_from,
+            'date_to' => $range?->date_to,
+            'total_transactions' => (int) ($range?->total_transactions ?? 0),
+        ];
+    }
+
     public function storeAnalysis(array $runPayload, array $rules): EclatRun
     {
         return DB::transaction(function () use ($runPayload, $rules): EclatRun {
