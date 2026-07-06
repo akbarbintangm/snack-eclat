@@ -10,6 +10,8 @@ interface EclatRepositoryInterface
 {
     public function transactionsForAnalysis(array $period = []): Collection;
 
+    public function transactionDateRange(): array;
+
     public function storeAnalysis(array $runPayload, array $rules): EclatRun;
 
     public function paginateRuns(array $filters = [], int $perPage = 10): LengthAwarePaginator;

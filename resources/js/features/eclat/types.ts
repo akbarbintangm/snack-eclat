@@ -55,6 +55,12 @@ export interface EclatRunDetail {
     steps: EclatStep[];
 }
 
+export interface EclatTransactionPeriod {
+    date_from?: string | null;
+    date_to?: string | null;
+    total_transactions: number;
+}
+
 export type EclatFilterType = 'all' | 'range';
 
 export interface EclatFilterParams {

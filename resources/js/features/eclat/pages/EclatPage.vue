@@ -205,7 +205,7 @@ import PageHeader from '../../../shared/components/PageHeader.vue';
 import PaginationBar from '../../../shared/components/PaginationBar.vue';
 import SkeletonBlock from '../../../shared/components/SkeletonBlock.vue';
 import { t } from '../../../shared/i18n';
-import { fetchEclatResults, fetchEclatRun, fetchEclatRuns, runEclatAnalysis } from '../api';
+import { fetchEclatResults, fetchEclatRun, fetchEclatRuns, fetchEclatTransactionPeriod, runEclatAnalysis } from '../api';
 import type { EclatFilterParams, EclatFilterType, EclatItemset, EclatResult, EclatRun, EclatRunDetail, EclatStep } from '../types';
 
 const today = new Date().toISOString().slice(0, 10);
@@ -227,11 +227,16 @@ const runMeta = ref<PageMeta | null>(null);
 const resultMeta = ref<PageMeta | null>(null);
 const errorMessage = ref('');
 const errorStatus = ref<number | undefined>();
+const transactionPeriodInitialized = ref(false);
 
 const latestSteps = computed<EclatStep[]>(() => latestRunDetail.value?.steps ?? []);
 const latestItemsets = computed<EclatItemset[]>(() => latestRunDetail.value?.run.frequent_itemsets ?? []);
 const rulesEmptyMessage = computed(() => {
     const run = latestRunDetail.value?.run;
+
+    if (run && run.total_transactions === 0) {
+        return t('emptyRulesNoTransactions');
+    }
 
     if (run && run.frequent_itemset_count === 0) {
         return t('emptyRulesNoItemset');
@@ -285,6 +290,7 @@ async function loadAll(): Promise<void> {
     errorStatus.value = undefined;
 
     try {
+        await initializeTransactionPeriod();
         await loadRuns(1);
         activeRunId.value = runs.value[0]?.id ?? null;
         if (runs.value[0]) {
@@ -325,6 +331,21 @@ async function submitAnalysis(): Promise<void> {
 
 async function applyFilter(): Promise<void> {
     await loadAll();
+}
+
+async function initializeTransactionPeriod(): Promise<void> {
+    if (transactionPeriodInitialized.value) {
+        return;
+    }
+
+    transactionPeriodInitialized.value = true;
+
+    const response = await fetchEclatTransactionPeriod();
+
+    if (response.data.date_from && response.data.date_to) {
+        filterDateFrom.value = response.data.date_from;
+        filterDateTo.value = response.data.date_to;
+    }
 }
 
 async function applyRunSearch(): Promise<void> {

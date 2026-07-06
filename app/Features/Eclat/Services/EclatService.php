@@ -23,6 +23,11 @@ class EclatService
         return $this->eclat->paginateResults($this->periodFromFilters($filters), $perPage);
     }
 
+    public function transactionDateRange(): array
+    {
+        return $this->eclat->transactionDateRange();
+    }
+
     public function findRun(int $id): array
     {
         $run = $this->eclat->findRun($id);
