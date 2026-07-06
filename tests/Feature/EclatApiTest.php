@@ -90,6 +90,51 @@ class EclatApiTest extends TestCase
         ]);
     }
 
+    public function test_eclat_results_stay_scoped_to_selected_run_when_period_filter_is_present(): void
+    {
+        $headers = $this->authHeaders();
+        $popcorn = Snack::query()->create(['name' => 'Popcorn', 'status' => 'active']);
+        $pia = Snack::query()->create(['name' => 'Pia', 'status' => 'active']);
+        $keripik = Snack::query()->create(['name' => 'Keripik', 'status' => 'active']);
+
+        $this->createTransaction('OCT-1', '2025-10-02', [$popcorn->id, $pia->id]);
+        $this->createTransaction('OCT-2', '2025-10-03', [$popcorn->id, $pia->id]);
+        $this->createTransaction('NOV-1', '2025-11-01', [$popcorn->id, $keripik->id]);
+        $this->createTransaction('NOV-2', '2025-11-02', [$popcorn->id, $keripik->id]);
+
+        $octoberRunId = $this->withHeaders($headers)
+            ->postJson('/api/v1/eclat/analyze', [
+                'min_support' => 50,
+                'min_confidence' => 50,
+                'filter_type' => 'range',
+                'date_from' => '2025-10-01',
+                'date_to' => '2025-10-31',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.run.min_support', 50)
+            ->assertJsonPath('data.run.min_confidence', 50)
+            ->assertJsonPath('data.run.rule_count', 2)
+            ->json('data.run.id');
+
+        $this->withHeaders($headers)
+            ->postJson('/api/v1/eclat/analyze', [
+                'min_support' => 0.1,
+                'min_confidence' => 30,
+                'filter_type' => 'all',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.run.min_support', 0.1)
+            ->assertJsonPath('data.run.min_confidence', 30)
+            ->assertJsonPath('data.run.rule_count', 4);
+
+        $this->withHeaders($headers)
+            ->getJson("/api/v1/eclat/results?run_id={$octoberRunId}&filter_type=range&date_from=2025-11-01&date_to=2025-11-30")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('data.0.run.min_support', 50)
+            ->assertJsonPath('data.0.run.min_confidence', 50);
+    }
+
     public function test_eclat_analysis_matches_proposal_example_dataset(): void
     {
         $headers = $this->authHeaders();

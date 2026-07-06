@@ -1,5 +1,5 @@
 <template>
-    <FullPageLoader v-if="analyzing" :label="t('eclatLoading')" />
+    <FullPageLoader v-if="analyzing || loadingRunDetail" :label="analyzing ? t('eclatLoading') : t('loading')" />
 
     <PageHeader eyebrow="Association Rule" :title="t('eclat')" description="Proses ECLAT dijalankan di Laravel agar perhitungan TID List dan DFS intersection tetap cepat saat data bertambah." />
 
@@ -18,36 +18,60 @@
                 <option value="range">{{ t('dateRange') }}</option>
             </select>
 
-            <input
+            <DatePickerControl
                 v-if="filterType === 'range'"
                 v-model="filterDateFrom"
-                class="form-control date-control mt-3"
-                type="date"
+                class="mt-3"
                 :aria-label="t('startDate')"
                 :title="t('startDate')"
-                @click="openNativeDatePicker"
-                @focus="openNativeDatePicker"
-            >
-            <input
+            />
+            <DatePickerControl
                 v-if="filterType === 'range'"
                 v-model="filterDateTo"
-                class="form-control date-control mt-3"
-                type="date"
+                class="mt-3"
                 :aria-label="t('endDate')"
                 :title="t('endDate')"
-                @click="openNativeDatePicker"
-                @focus="openNativeDatePicker"
-            >
+            />
 
             <button class="btn btn-outline-success w-100 mt-3" type="button" @click="applyFilter">
                 {{ t('applyFilter') }}
             </button>
 
-            <label class="form-label mt-4" for="minSupport">{{ t('support') }} <strong>{{ minSupport }}%</strong></label>
-            <input id="minSupport" v-model="minSupport" class="form-range" type="range" min="0.1" max="100" step="0.1">
+            <div class="threshold-label mt-4">
+                <label class="form-label m-0" for="minSupport">{{ t('support') }}</label>
+                <div class="threshold-value">
+                    <input
+                        v-model.number="minSupport"
+                        class="form-control threshold-input"
+                        type="number"
+                        min="0.1"
+                        max="100"
+                        step="0.1"
+                        :aria-label="t('support')"
+                        @blur="minSupport = clampThreshold(minSupport, 0.1)"
+                    >
+                    <span>%</span>
+                </div>
+            </div>
+            <input id="minSupport" v-model.number="minSupport" class="form-range" type="range" min="0.1" max="100" step="0.1">
 
-            <label class="form-label mt-4" for="minConfidence">{{ t('confidence') }} <strong>{{ minConfidence }}%</strong></label>
-            <input id="minConfidence" v-model="minConfidence" class="form-range" type="range" min="0" max="100">
+            <div class="threshold-label mt-4">
+                <label class="form-label m-0" for="minConfidence">{{ t('confidence') }}</label>
+                <div class="threshold-value">
+                    <input
+                        v-model.number="minConfidence"
+                        class="form-control threshold-input"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        :aria-label="t('confidence')"
+                        @blur="minConfidence = clampThreshold(minConfidence, 0)"
+                    >
+                    <span>%</span>
+                </div>
+            </div>
+            <input id="minConfidence" v-model.number="minConfidence" class="form-range" type="range" min="0" max="100">
 
             <button class="btn btn-success w-100 mt-4" type="submit">{{ t('analyze') }}</button>
         </form>
@@ -87,6 +111,7 @@
                     <thead>
                         <tr>
                             <th>Kode</th>
+                            <th>Waktu</th>
                             <th>{{ t('period') }}</th>
                             <th>{{ t('support') }}</th>
                             <th>{{ t('confidence') }}</th>
@@ -102,6 +127,7 @@
                             @click="selectRun(run.id)"
                         >
                             <td class="fw-semibold">{{ run.run_code }}</td>
+                            <td>{{ formatDisplayDateTime(run.created_at) }}</td>
                             <td>{{ formatDisplayDateRange(run.date_from, run.date_to) }}</td>
                             <td>{{ run.min_support }}%</td>
                             <td>{{ run.min_confidence }}%</td>
@@ -110,67 +136,69 @@
                     </tbody>
                 </table>
             </div>
-            <PaginationBar :meta="runMeta" @change="loadRuns" />
+            <PaginationBar :meta="runMeta" always @change="loadRuns" />
         </article>
 
-        <article class="content-panel">
+        <article v-if="latestItemsets.length" class="content-panel">
             <div class="panel-header">
-                <p class="eyebrow">{{ t('rules') }}</p>
-                <h2>Hasil Association Rule</h2>
+                <p class="eyebrow">{{ t('frequentItemset') }}</p>
+                <h2>{{ t('latestRunItemset') }}</h2>
             </div>
-            <div class="table-toolbar">
-                <input v-model="resultSearch" class="form-control" :placeholder="t('searchRule')" @keyup.enter="loadResults(1)">
-                <button class="btn btn-outline-success" type="button" @click="loadResults(1)">{{ t('search') }}</button>
-            </div>
-            <SkeletonBlock v-if="loading" :lines="5" />
-            <div v-else class="table-responsive">
-                <table class="table align-middle data-table">
-                    <thead>
-                        <tr>
-                            <th>{{ t('rule') }}</th>
-                            <th>{{ t('support') }}</th>
-                            <th>{{ t('confidence') }}</th>
-                            <th>{{ t('lift') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="result in results" :key="result.id">
-                            <td>{{ result.combination_item }}</td>
-                            <td>{{ result.support }}%</td>
-                            <td class="fw-semibold">{{ result.confidence }}%</td>
-                            <td>{{ result.lift_ratio ?? '-' }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <div v-if="results.length === 0" class="empty-state">
-                    <p>{{ rulesEmptyMessage }}</p>
-                    <button class="btn btn-outline-success" type="button" :disabled="analyzing" @click="runRecommendedAnalysis">
-                        {{ t('runRecommendedAnalysis') }}
-                    </button>
+            <div class="tid-list">
+                <div v-for="itemset in latestItemsets" :key="itemset.key" class="tid-row">
+                    <strong>{{ itemset.label }} - {{ itemset.support }}%</strong>
+                    <span>Transaction ID: {{ itemset.tid_list.join(', ') }}</span>
                 </div>
             </div>
-            <PaginationBar :meta="resultMeta" @change="loadResults" />
         </article>
     </section>
 
-    <section v-if="latestItemsets.length" class="content-panel mt-3">
+    <section class="content-panel mt-3">
         <div class="panel-header">
-            <p class="eyebrow">{{ t('frequentItemset') }}</p>
-            <h2>{{ t('latestRunItemset') }}</h2>
+            <p class="eyebrow">{{ t('rules') }}</p>
+            <h2>Hasil Association Rule</h2>
         </div>
-        <div class="tid-list">
-            <div v-for="itemset in latestItemsets" :key="itemset.key" class="tid-row">
-                <strong>{{ itemset.label }} - {{ itemset.support }}%</strong>
-                <span>Transaction ID: {{ itemset.tid_list.join(', ') }}</span>
+        <div class="table-toolbar">
+            <input v-model="resultSearch" class="form-control" :placeholder="t('searchRule')" @keyup.enter="loadResults(1)">
+            <button class="btn btn-outline-success" type="button" @click="loadResults(1)">{{ t('search') }}</button>
+        </div>
+        <SkeletonBlock v-if="loading" :lines="5" />
+        <div v-else class="table-responsive">
+            <table class="table align-middle data-table">
+                <thead>
+                    <tr>
+                        <th>{{ t('rule') }}</th>
+                        <th>{{ t('support') }}</th>
+                        <th>{{ t('confidence') }}</th>
+                        <th>{{ t('lift') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="result in results" :key="result.id">
+                        <td>{{ result.combination_item }}</td>
+                        <td>{{ result.support }}%</td>
+                        <td class="fw-semibold">{{ result.confidence }}%</td>
+                        <td>{{ result.lift_ratio ?? '-' }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div v-if="results.length === 0" class="empty-state">
+                <p>{{ rulesEmptyMessage }}</p>
+                <button class="btn btn-outline-success" type="button" :disabled="analyzing" @click="runRecommendedAnalysis">
+                    {{ t('runRecommendedAnalysis') }}
+                </button>
             </div>
         </div>
+        <PaginationBar :meta="resultMeta" @change="loadResults" />
     </section>
+
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { ApiClientError, type PageMeta } from '../../../shared/api/types';
-import { formatDisplayDateRange, openNativeDatePicker } from '../../../shared/dateFormatter';
+import { formatDisplayDateRange, formatDisplayDateTime } from '../../../shared/dateFormatter';
+import DatePickerControl from '../../../shared/components/DatePickerControl.vue';
 import ErrorBanner from '../../../shared/components/ErrorBanner.vue';
 import FullPageLoader from '../../../shared/components/FullPageLoader.vue';
 import PageHeader from '../../../shared/components/PageHeader.vue';
@@ -183,6 +211,7 @@ import type { EclatFilterParams, EclatFilterType, EclatItemset, EclatResult, Ecl
 const today = new Date().toISOString().slice(0, 10);
 const loading = ref(true);
 const analyzing = ref(false);
+const loadingRunDetail = ref(false);
 const minSupport = ref(0.1);
 const minConfidence = ref(30);
 const filterType = ref<EclatFilterType>('all');
@@ -238,12 +267,13 @@ async function loadRuns(page = runMeta.value?.current_page ?? 1): Promise<void> 
 }
 
 async function loadResults(page = resultMeta.value?.current_page ?? 1): Promise<void> {
+    const runId = activeRunId.value ?? undefined;
     const response = await fetchEclatResults({
         page,
         per_page: 10,
         search: resultSearch.value.trim() || undefined,
-        ...periodParams.value,
-        run_id: activeRunId.value ?? undefined,
+        ...(runId ? {} : periodParams.value),
+        run_id: runId,
     });
     results.value = response.data;
     resultMeta.value = response.meta;
@@ -259,7 +289,7 @@ async function loadAll(): Promise<void> {
         activeRunId.value = runs.value[0]?.id ?? null;
         if (runs.value[0]) {
             const response = await fetchEclatRun(runs.value[0].id);
-            latestRunDetail.value = response.data;
+            setLatestRunDetail(response.data);
         } else {
             latestRunDetail.value = null;
         }
@@ -276,10 +306,12 @@ async function submitAnalysis(): Promise<void> {
     analyzing.value = true;
     errorMessage.value = '';
     errorStatus.value = undefined;
+    minSupport.value = clampThreshold(minSupport.value, 0.1);
+    minConfidence.value = clampThreshold(minConfidence.value, 0);
 
     try {
         const response = await runEclatAnalysis(Number(minSupport.value), Number(minConfidence.value), periodParams.value);
-        latestRunDetail.value = response.data;
+        setLatestRunDetail(response.data);
         activeRunId.value = response.data.run.id;
         await loadRuns(1);
         await loadResults(1);
@@ -301,7 +333,7 @@ async function applyRunSearch(): Promise<void> {
 
     if (runs.value[0]) {
         const response = await fetchEclatRun(runs.value[0].id);
-        latestRunDetail.value = response.data;
+        setLatestRunDetail(response.data);
     } else {
         latestRunDetail.value = null;
     }
@@ -311,16 +343,19 @@ async function applyRunSearch(): Promise<void> {
 
 async function selectRun(runId: number): Promise<void> {
     activeRunId.value = runId;
+    loadingRunDetail.value = true;
     errorMessage.value = '';
     errorStatus.value = undefined;
 
     try {
         const response = await fetchEclatRun(runId);
-        latestRunDetail.value = response.data;
+        setLatestRunDetail(response.data);
         await loadResults(1);
     } catch (error) {
         errorMessage.value = error instanceof ApiClientError ? error.message : 'Gagal memuat ECLAT';
         errorStatus.value = error instanceof ApiClientError ? error.statusCode : undefined;
+    } finally {
+        loadingRunDetail.value = false;
     }
 }
 
@@ -328,6 +363,22 @@ async function runRecommendedAnalysis(): Promise<void> {
     minSupport.value = 0.1;
     minConfidence.value = 30;
     await submitAnalysis();
+}
+
+function setLatestRunDetail(detail: EclatRunDetail): void {
+    latestRunDetail.value = detail;
+    minSupport.value = Number(detail.run.min_support);
+    minConfidence.value = Number(detail.run.min_confidence);
+}
+
+function clampThreshold(value: number | string, min: number): number {
+    const numeric = Number(value);
+
+    if (!Number.isFinite(numeric)) {
+        return min;
+    }
+
+    return Number(Math.min(100, Math.max(min, numeric)).toFixed(4));
 }
 
 onMounted(loadAll);
